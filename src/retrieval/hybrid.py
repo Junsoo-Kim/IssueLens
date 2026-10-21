@@ -24,6 +24,8 @@ from src.retrieval.rrf_fusion import FusedHit, reciprocal_rank_fusion
 from src.retrieval.sparse_retriever import SparseRetriever
 
 MODES = ("hybrid", "sparse", "dense")
+# 해결 근거 후보를 가져올 상위 이슈 수. 관련성이 낮은 이슈의 PR이 근거로 들어오지 않게 좁게 둔다
+RESOLUTION_ISSUES = 3
 
 
 @dataclass
@@ -105,6 +107,25 @@ class HybridRetriever:
         got = collection.get(ids=ids, include=["documents", "metadatas"])
         return {i: {"id": i, "text": t, "metadata": m} for i, t, m in zip(got["ids"], got["documents"], got["metadatas"])}
 
+    def _resolution_candidates(self, issue_ids: list[str]) -> list[dict]:
+        """상위 이슈의 병합 PR 설명과 유지보수자 댓글 첫 청크. 이슈 순위, PR, 해결 신호 댓글, 일반 유지보수자 댓글 순."""
+        if not issue_ids:
+            return []
+        got = self.document_collection.get(
+            where={"$and": [in_filter("issue_id", issue_ids), {"chunk_index": 0},
+                            {"$or": [{"document_type": "pull_request"}, {"author_role": "maintainer"}]}]},
+            include=["documents", "metadatas"])
+        order = {issue_id: i for i, issue_id in enumerate(issue_ids)}
+
+        def priority(metadata: dict) -> int:
+            if metadata.get("document_type") == "pull_request":
+                return 0
+            return 1 if "resolution_signal" in (metadata.get("selection_reason") or "") else 2
+
+        candidates = [{"id": i, "text": t, "metadata": m} for i, t, m in zip(got["ids"], got["documents"], got["metadatas"])]
+        return sorted(candidates, key=lambda c: (order.get(c["metadata"]["issue_id"], len(order)),
+                                                 priority(c["metadata"]), c["id"]))
+
     def _forced_evidence(self, selected_issue_id: str) -> list[dict]:
         """선택 이슈의 RAG 1 메타데이터와 이슈 본문 청크는 점수와 무관하게 근거에 넣는다."""
         record = self._fetch(self.issue_collection, [issue_record_id(selected_issue_id)])
@@ -153,6 +174,7 @@ class HybridRetriever:
             max_per_issue=diversity.get("max_evidence_per_issue", 3),
             max_per_type=diversity.get("max_evidence_per_document_type", 4),
             forced=self._forced_evidence(selected_issue_id) if selected_issue_id else None,
+            resolution_candidates=self._resolution_candidates(top_issue_ids[:RESOLUTION_ISSUES]),
         )
         return RetrievalResult(
             analysis=analysis,
@@ -161,7 +183,7 @@ class HybridRetriever:
             issues=issues,
             documents=documents,
             evidence=evidence,
-            assessment=assess_evidence(evidence),
+            assessment=assess_evidence(evidence, analysis.exact_tokens),
             trace={
                 "issue_rankings": issue_rankings,
                 "document_rankings": document_rankings,

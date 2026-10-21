@@ -19,6 +19,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 from src.config import load_repositories, load_yaml  # noqa: E402
 from src.indexing.embeddings import LazyOpenAIEmbedder  # noqa: E402
+from src.retrieval.evidence_selector import chunk_body  # noqa: E402
 from src.retrieval.hybrid import MODES, HybridRetriever, RetrievalResult  # noqa: E402
 from src.retrieval.repository_router import issue_id_of_record  # noqa: E402
 
@@ -26,8 +27,7 @@ SNIPPET_CHARS = 220
 
 
 def snippet(text: str) -> str:
-    body = text.split("\n\n", 1)[-1]  # 청크 앞의 저장소·제목 헤더는 뺀다
-    body = " ".join(body.split())
+    body = " ".join(chunk_body(text).split())
     return body[:SNIPPET_CHARS] + ("…" if len(body) > SNIPPET_CHARS else "")
 
 
@@ -46,7 +46,7 @@ def format_result(result: RetrievalResult, issue_titles: dict[str, str]) -> str:
         lines.append(f"  {rank}. {issue_id} ({ranks}) {issue_titles.get(issue_id, '')}")
     lines += ["", "== 근거"]
     for e in result.evidence:
-        tag = " [선택 이슈]" if e.forced else ""
+        tag = (" [선택 이슈]" if e.forced else "") + (" [해결 근거]" if e.resolution else "")
         role = f", {e.author_role}" if e.author_role else ""
         lines.append(f"[근거 {e.number}] {e.issue_id} · {e.document_type}{role}{tag}")
         lines.append(f"    {e.source_url}")

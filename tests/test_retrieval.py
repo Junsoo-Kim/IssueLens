@@ -64,16 +64,17 @@ def test_route_by_hits_picks_one_or_two():
 # ---------------------------------------------------------------- 근거 선별
 
 
-def hit(id_, issue, doc_type, text=None, role="", score=1.0):
-    return {"id": id_, "text": text or id_, "score": score,
-            "metadata": {"issue_id": issue, "document_type": doc_type, "content_hash": text or id_,
-                         "source_url": f"u/{id_}", "author_role": role}}
+def hit(id_, issue, doc_type, text=None, role="", score=1.0, document_id=None):
+    text = text or f"[repo#1] title\n문서: {doc_type}\n\n{id_} unique explanation of the failure and its root cause"
+    return {"id": id_, "text": text, "score": score,
+            "metadata": {"issue_id": issue, "document_type": doc_type, "content_hash": text,
+                         "document_id": document_id or id_, "source_url": f"u/{id_}", "author_role": role}}
 
 
 def test_select_evidence_dedupes_limits_and_numbers():
     hits = [
         hit("a1", "i1", "comment", role="maintainer"), hit("a2", "i1", "comment"), hit("a3", "i1", "comment"),
-        hit("a4", "i1", "comment"), hit("dup", "i2", "comment", text="a1"),
+        hit("a4", "i1", "comment"), hit("dup", "i2", "comment", text=hit("a1", "i1", "comment")["text"]),
         hit("b1", "i2", "pull_request"), hit("b2", "i2", "comment"), hit("c1", "i3", "comment"),
     ]
     forced = [hit("f1", "i9", "issue_metadata")]
@@ -85,10 +86,41 @@ def test_select_evidence_dedupes_limits_and_numbers():
     assert not assessment["insufficient"] and assessment["resolution_evidence_count"] == 2
 
 
+def test_select_evidence_skips_near_duplicates_trivial_chunks_and_caps_per_document():
+    log = "2022-09-14 12:20:36 destination > at java.base SelectorImpl.select " * 6
+    hits = [
+        hit("log1", "i1", "issue_body", text=f"h\n\n{log} tail one", document_id="d1"),
+        hit("log2", "i1", "issue_body", text=f"h\n\n{log} tail two", document_id="d1"),  # 앞부분이 같은 반복 로그
+        hit("fence", "i1", "issue_body", text="h\n\n```", document_id="d1"),  # 코드 블록 경계 조각
+        hit("p1", "i2", "issue_body", document_id="d2"), hit("p2", "i2", "issue_body", document_id="d2"),
+        hit("p3", "i2", "issue_body", document_id="d2"),
+    ]
+    evidence = select_evidence(hits, max_per_issue=5, max_per_type=5, max_per_document=2)
+    assert [e.id for e in evidence] == ["log1", "p1", "p2"]
+
+
+def test_select_evidence_reserves_slots_for_resolution():
+    hits = [hit(f"x{i}", f"i{i}", "issue_body") for i in range(8)]
+    candidates = [hit("pr", "i0", "pull_request"), hit("m", "i1", "comment", role="maintainer"),
+                  hit("pr2", "i2", "pull_request")]
+    evidence = select_evidence(hits, limit=8, max_per_type=8, resolution_candidates=candidates, resolution_slots=2)
+    assert len(evidence) == 8
+    assert [e.id for e in evidence][-2:] == ["pr", "m"]  # 관련성 낮은 끝자리 2개를 해결 근거로 교체
+    assert [e.id for e in evidence][:6] == [f"x{i}" for i in range(6)]
+    assert all(e.resolution for e in evidence[-2:])
+
+
 def test_assess_evidence_flags_insufficient():
     weak = select_evidence([hit("a", "i1", "comment")])
     assessment = assess_evidence(weak)
     assert assessment["insufficient"] and len(assessment["reasons"]) == 2
+
+
+def test_assess_evidence_requires_exact_tokens():
+    evidence = select_evidence([hit(f"m{i}", f"i{i}", "comment", role="maintainer") for i in range(3)])
+    assert not assess_evidence(evidence, ["m1"])["insufficient"]
+    missing = assess_evidence(evidence, ["TokenVerificationException"])
+    assert missing["insufficient"] and "TokenVerificationException" in missing["reasons"][0]
 
 
 # ---------------------------------------------------------------- BM25 필터
@@ -177,7 +209,9 @@ def test_sparse_retrieval_routes_and_finds_exact_error(index_dirs):
     assert result.route.repos[0] == "keycloak/keycloak"
     assert issue_id_of_record(result.issues[0].id) == "keycloak/keycloak#2"
     assert result.evidence and result.evidence[0].issue_id == "keycloak/keycloak#2"
-    assert {e.document_type for e in result.evidence} >= {"issue_body", "pull_request"}
+    assert "issue_body" in {e.document_type for e in result.evidence}
+    assert any(e.resolution for e in result.evidence)  # 유지보수자 댓글
+    assert result.assessment["matched_exact_tokens"] == ["TokenVerificationException"]
     assert not result.assessment["insufficient"]
 
 
