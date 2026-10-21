@@ -140,8 +140,14 @@ class HybridRetriever:
         forced.extend({"id": i, "text": t, "metadata": m} for i, t, m in chunks[:1])
         return forced
 
+    def refresh_sparse(self) -> None:
+        """질문 시점 수집으로 BM25 인덱스 파일이 바뀐 뒤 다시 읽게 한다."""
+        self.issue_sparse._indexes.clear()
+        self.document_sparse._indexes.clear()
+
     def retrieve(self, question: str, repo: str | None = None, selected_issue_id: str | None = None,
-                 mode: str = "hybrid") -> RetrievalResult:
+                 mode: str = "hybrid", extra_issue_ids: list[str] | None = None) -> RetrievalResult:
+        """extra_issue_ids: 질문 시점 수집 등으로 근거 검색 범위에 반드시 넣을 이슈. 상위 이슈보다 앞에 둔다."""
         if mode not in MODES:
             raise ValueError(f"mode는 {MODES} 중 하나여야 합니다: {mode}")
         analysis = analyze_query(question, self.repositories, selected_issue_id)
@@ -150,6 +156,7 @@ class HybridRetriever:
 
         doc_cfg = self.config.get("document", {})
         top_issue_ids = [issue_id_of_record(h.id) for h in issues[: self.config.get("issue", {}).get("rerank_top_k", 8)]]
+        top_issue_ids = list(dict.fromkeys([*(extra_issue_ids or []), *top_issue_ids]))
         if selected_issue_id and selected_issue_id not in top_issue_ids:
             top_issue_ids.insert(0, selected_issue_id)
 

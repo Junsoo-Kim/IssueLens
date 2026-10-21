@@ -56,6 +56,9 @@ def document_records(documents: list[dict], chunking: dict) -> list[dict]:
                     "chunk_index": index,
                     "chunk_count": len(pieces),
                     "content_hash": hashlib.sha256(piece.encode("utf-8")).hexdigest(),
+                    # 질문 시점 외부 수집 문서만 표시한다. 사전 수집 문서에 키를 추가하면 레코드 해시가 바뀌어
+                    # 전체가 다시 임베딩되므로 기존 문서의 메타데이터는 그대로 둔다
+                    **({"collection_source": document["collection_source"]} if document.get("collection_source") else {}),
                 },
             })
     return records

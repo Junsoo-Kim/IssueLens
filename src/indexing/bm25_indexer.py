@@ -102,6 +102,30 @@ def build_bm25_indexes(records: list[dict], output_dir: Path) -> dict[str, int]:
     return counts
 
 
+def upsert_bm25(records: list[dict], output_dir: Path) -> dict[str, int]:
+    """기존 저장소 인덱스에 레코드를 추가·교체한다. 다른 레코드는 지우지 않는다. 저장소별 전체 건수를 반환한다."""
+    by_repo: dict[str, list[dict]] = defaultdict(list)
+    for record in records:
+        by_repo[record["metadata"]["repo"]].append(record)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    counts = {}
+    for repo, items in by_repo.items():
+        path = output_dir / f"{repo_slug(repo)}.json"
+        tokens_by_id: dict[str, list[str]] = {}
+        if path.exists():
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            tokens_by_id = dict(zip(data["ids"], data["tokens"]))
+        for record in items:
+            tokens_by_id[record["id"]] = tokenize(record["text"])
+        ids = sorted(tokens_by_id)
+        write_json_atomic(path, {"tokenizer_version": TOKENIZER_VERSION, "repo": repo, "ids": ids,
+                                 "tokens": [tokens_by_id[i] for i in ids]})
+        counts[repo] = len(ids)
+    return counts
+
+
 def load_bm25_ids(output_dir: Path) -> set[str]:
     ids: set[str] = set()
     for path in Path(output_dir).glob("*.json"):
