@@ -1,0 +1,29 @@
+# 앱 공통 설정
+app:
+  name: IssueLens
+  version: 0.1.0
+
+llm:
+  model: gpt-5-mini         # 답변 생성 모델, API 주소는 .env의 OPENAI_BASE_URL
+                            # GPT-5 계열은 temperature 기본값(1)만 지원하므로 지정하지 않는다
+
+http:                       # 기획서 5.7절, request_interval_seconds는 내부 초기값
+  connect_timeout_seconds: 5
+  read_timeout_seconds: 20
+  max_retries: 5
+  backoff_factor: 2
+  request_interval_seconds: 0.5
+
+paths:
+  raw_dir: data/raw/github
+  processed_dir: data/processed
+  cache_dir: data/cache
+  manifest_dir: data/manifests
+  eval_dir: data/eval
+  chroma_dir: chroma_db
+  sparse_index_dir: sparse_index
+
+safety_notice: >-
+  이 답변은 공개 이슈와 문서를 검색해 제공하는 기술 조사 보조 결과입니다.
+  생성된 명령과 코드 변경은 저장소의 기여 규칙을 확인하고 격리된 환경에서
+  재현 테스트를 수행한 뒤 적용해야 합니다.

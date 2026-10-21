@@ -1,0 +1,53 @@
+# 수집 대상 저장소와 수량 (기획서 5.2절)
+defaults:
+  primary_query: "is:issue is:closed"
+  shallow_candidate_limit: 1000
+  deep_target_count: 200
+  index_target_count: 150
+  evaluation_holdout_count: 30
+  reserve_count: 20
+
+# docs_allowlist: 본문을 자동 수집할 공식 문서 도메인 (5.5절 단계 F)
+# category: 저장소 간 확장 검색에 쓰는 공통 상위 범주 (5.4절, 9.7절)
+repositories:
+  - repo: datahub-project/datahub
+    description: 메타데이터 플랫폼, 검색, 이벤트 처리
+    categories: [database_search, async_event, deployment_upgrade]
+    docs_allowlist: [datahubproject.io]
+  - repo: open-metadata/OpenMetadata
+    description: 데이터 카탈로그, 거버넌스, 파이프라인
+    categories: [database_search, api_ui, deployment_upgrade]
+    docs_allowlist: [docs.open-metadata.org]
+  - repo: langgenius/dify
+    description: 생성형 AI 서비스 플랫폼, 모델 연동
+    categories: [api_ui, deployment_upgrade, performance_reliability]
+    docs_allowlist: [docs.dify.ai]
+  - repo: thingsboard/thingsboard
+    description: IoT 플랫폼, 텔레메트리, 규칙 엔진
+    categories: [async_event, performance_reliability, database_search]
+    docs_allowlist: [thingsboard.io]
+  - repo: conductor-oss/conductor
+    description: 분산 워크플로 오케스트레이션
+    categories: [async_event, performance_reliability]
+    docs_allowlist: [conductor-oss.org]
+    shallow_candidate_limit: 319
+  - repo: airbytehq/airbyte
+    description: 데이터 통합, 커넥터, 동기화 작업
+    categories: [async_event, database_search, deployment_upgrade]
+    docs_allowlist: [docs.airbyte.com]
+  - repo: getsentry/sentry
+    description: 오류 추적, 관측, 알림
+    categories: [performance_reliability, api_ui, deployment_upgrade]
+    docs_allowlist: [docs.sentry.io, develop.sentry.dev]
+  - repo: keycloak/keycloak
+    description: 인증, 인가, 아이덴티티 운영
+    categories: [auth, deployment_upgrade]
+    docs_allowlist: [www.keycloak.org]
+
+categories:
+  deployment_upgrade: 배포 및 업그레이드
+  database_search: 데이터베이스 및 검색
+  async_event: 비동기 및 이벤트 처리
+  auth: 인증 및 권한
+  performance_reliability: 성능 및 신뢰성
+  api_ui: API 및 UI 연동

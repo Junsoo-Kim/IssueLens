@@ -1,0 +1,11 @@
+# 선택 기능 의존성
+#
+#     pip install -r requirements.txt -r requirements-optional.txt
+
+# 선택적 Cross-Encoder 재정렬 (BAAI/bge-reranker-v2-m3) — torch가 함께 설치되어 용량이 크다
+sentence-transformers==6.1.0   # 기획서 버전 미지정
+
+# F2013 프론트엔드 분리 (선택 심화)
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
