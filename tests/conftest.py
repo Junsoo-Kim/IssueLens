@@ -1,13 +1,29 @@
-"""수집기 테스트용 가짜 HTTP 세션과 시계. 실제 GitHub API는 호출하지 않는다."""
+"""테스트 공용 픽스처: 환경 변수 격리, 가짜 HTTP 세션과 시계. 실제 GitHub·LLM·LangSmith API는 호출하지 않는다."""
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 from requests.structures import CaseInsensitiveDict
 
 from src.collectors.cache import ResponseCache
 from src.collectors.github_client import API_BASE_URL, GitHubClient, HttpSettings
+
+
+@pytest.fixture(autouse=True)
+def isolated_environment(monkeypatch):
+    """CLI main()이 실제 .env를 읽어 os.environ을 바꿔도 다음 테스트로 새지 않게 되돌린다.
+
+    LangSmith 추적은 항상 끈다. load_dotenv는 이미 있는 변수를 덮어쓰지 않으므로 .env의
+    LANGSMITH_TRACING=true가 테스트 중에 적용되지 않는다.
+    """
+    saved = dict(os.environ)
+    monkeypatch.setenv("LANGSMITH_TRACING", "false")
+    monkeypatch.setenv("LANGCHAIN_TRACING_V2", "false")
+    yield
+    os.environ.clear()
+    os.environ.update(saved)
 
 
 class FakeResponse:
