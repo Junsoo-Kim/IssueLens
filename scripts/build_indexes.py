@@ -37,6 +37,7 @@ from src.preprocessing.document_builder import (  # noqa: E402
 )
 from src.preprocessing.metadata_builder import build_issue_item  # noqa: E402
 from src.preprocessing.resolution import infer_maintainers  # noqa: E402
+from src.preprocessing.tagger import primary_category  # noqa: E402
 
 INDEX_VERSION = "1"
 
@@ -152,6 +153,7 @@ def build(argv: list[str] | None = None, embedder=None) -> tuple[int, dict | Non
     parser.add_argument("--chroma-dir", type=Path, default=ROOT / "chroma_db")
     parser.add_argument("--sparse-dir", type=Path, default=ROOT / "sparse_index")
     parser.add_argument("--retrieval-config", type=Path, default=ROOT / "configs/retrieval.yaml")
+    parser.add_argument("--config", type=Path, default=ROOT / "configs/repositories.yaml")
     parser.add_argument("--splits", nargs="+", default=["index"], help="색인할 final_split (평가용은 색인하지 않는다)")
     parser.add_argument("--skip-embed", action="store_true", help="Chroma 임베딩 없이 문서·청크·BM25만 만든다")
     parser.add_argument("--reset", action="store_true", help="기존 컬렉션과 BM25 인덱스를 지우고 다시 만든다")
@@ -174,7 +176,15 @@ def build(argv: list[str] | None = None, embedder=None) -> tuple[int, dict | Non
     collections = retrieval.get("collections", {})
 
     selection = [r for r in read_jsonl(args.selection) if r["final_split"] in args.splits]
-    tags = {t["issue_id"]: t for t in read_jsonl(args.tagged)}
+    # 범위 확정(부가 태그 전용 범주) 이전에 만든 태깅 결과에도 같은 대표 범주 규칙을 적용한다
+    repo_config = load_yaml(args.config)
+    tag_only = set(repo_config.get("tagging", {}).get("tag_only_categories", []))
+    fallbacks = {r["repo"]: r.get("categories", []) for r in repo_config.get("repositories", [])}
+    tags = {
+        t["issue_id"]: {**t, "category": primary_category(
+            t.get("categories", []), fallbacks.get(t["issue_id"].rsplit("#", 1)[0], []), tag_only)}
+        for t in read_jsonl(args.tagged)
+    }
     summaries = {s["issue_id"]: s for s in read_jsonl(args.deep_issues)}
     items, documents, rejected, missing, maintainers = build_processed(
         selection, tags, summaries, read_jsonl(args.deep_selection), RawStore(args.raw_dir))

@@ -29,6 +29,21 @@ tagging:
   unreproducible_labels: ["state: unreproducible", cant-reproduce]
   # 앞쪽 패턴이 우선한다. 저장소별 component_patterns가 이 목록보다 먼저 적용된다
   component_patterns: ["^area/", "^component/", "^product area:", "^feat:", "^connectors/(source|destination)/"]
+  # 대표 범주로 쓰지 않고 부가 태그로만 남기는 범주 (scope 참고)
+  tag_only_categories: [performance_reliability]
+
+# 범위 확정 (기획서 5.4절 2단계, docs/scope.md)
+scope:
+  name: 기업 운영 플랫폼과 유사한 오픈소스 서비스의 장애 및 운영 이슈
+  categories: [async_event, api_ui, deployment_upgrade, database_search, auth]
+  issue_types:
+    bug: 장애·결함
+    question: 설정·사용법 (유지보수자가 답변한 질문)
+    unknown: 미분류 (재현·로그 신호로 포함)
+  criteria:
+    min_evaluation_per_category: 10   # 범주마다 평가 가능한 표본
+    max_category_share: 0.4           # 한 범주가 색인을 독점하지 않음
+    min_strong_or_medium_ratio: 0.8   # 해결 근거가 있는 비율
 
 # docs_allowlist: 본문을 자동 수집할 공식 문서 도메인 (5.5절 단계 F)
 # categories: 저장소 간 확장 검색에 쓰는 공통 상위 범주 (5.4절, 9.7절). 첫 번째가 분류 실패 시 기본값

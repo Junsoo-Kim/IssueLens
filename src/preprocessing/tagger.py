@@ -60,6 +60,7 @@ class TaggingRules:
     stale_labels: set[str]
     unreproducible_labels: set[str]
     component_patterns: list[re.Pattern]
+    tag_only_categories: set[str] = field(default_factory=set)
 
     @classmethod
     def from_config(cls, tagging: dict, repo_config: dict | None = None) -> "TaggingRules":
@@ -71,6 +72,7 @@ class TaggingRules:
             stale_labels={normalize_label(l) for l in tagging.get("stale_labels", [])},
             unreproducible_labels={normalize_label(l) for l in tagging.get("unreproducible_labels", [])},
             component_patterns=[re.compile(p, re.IGNORECASE) for p in patterns],
+            tag_only_categories=set(tagging.get("tag_only_categories", [])),
         )
 
 
@@ -155,7 +157,15 @@ def classify_categories(title: str, body: str, components: list[str], fallback: 
         if score:
             scores[name] = score
     ranked = sorted(scores, key=lambda n: (-scores[n], fallback.index(n) if n in fallback else len(fallback)))
-    return ranked[:2] or fallback[:1]
+    return ranked[:3] or fallback[:1]
+
+
+def primary_category(categories: list[str], fallback: list[str], tag_only: set[str]) -> str | None:
+    """대표 범주. 부가 태그 전용 범주는 건너뛰고, 남는 것이 없으면 저장소 기본 범주를 쓴다."""
+    for name in list(categories) + list(fallback):
+        if name not in tag_only:
+            return name
+    return None
 
 
 def extract_versions(body: str, sections: Sections) -> list[str]:
@@ -217,7 +227,7 @@ def tag_issue(issue: dict, rules: TaggingRules, repo_config: dict | None = None)
         "components": components,
         "component": components[0] if components else "general",
         "categories": categories,
-        "category": categories[0] if categories else None,
+        "category": primary_category(categories, repo_config.get("categories", []), rules.tag_only_categories),
         "languages": [name for name, pattern in LANGUAGES.items() if re.search(pattern, lowered)],
         "dependencies": [dep for dep in DEPENDENCIES if dep in lowered],
         "error_types": error_types,
