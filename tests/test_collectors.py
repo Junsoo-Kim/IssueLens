@@ -234,7 +234,7 @@ def test_fetch_issue_rejects_pull_request_and_strips_personal_data(make_client, 
         f"/repos/{REPO}/issues/2": [FakeResponse(json_data=issue_item(2, pull_request={}))],
     })
     fetch_issue(client, REPO, 1, raw_store)
-    saved = json.loads(raw_store.path(REPO, "issues", "1").read_text())
+    saved = json.loads(raw_store.path(REPO, "issues", "1").read_text(encoding="utf-8"))
     assert saved["user"] == {"login": "reporter"}
     with pytest.raises(NotAnIssueError):
         fetch_issue(client, REPO, 2, raw_store)
@@ -350,7 +350,7 @@ def test_run_shallow_writes_outputs_without_detail_calls(shallow_env, tmp_path, 
     assert manifest.is_done(f"shallow:{REPO}")
     # 얕은 수집에서는 댓글, 타임라인, PR API를 호출하지 않는다
     assert all(p == SEARCH or p.endswith("/license") for p in session.paths())
-    source = json.loads((tmp_path / "manifests" / "source_manifest.json").read_text())
+    source = json.loads((tmp_path / "manifests" / "source_manifest.json").read_text(encoding="utf-8"))
     assert source["repositories"][REPO]["license"]["spdx_id"] == "Apache-2.0"
 
 
@@ -441,7 +441,7 @@ def test_run_deep_records_pull_request_objects_as_failed(make_client, tmp_path, 
 
 def test_load_selection_accepts_both_formats(tmp_path):
     path = tmp_path / "selection.jsonl"
-    path.write_text('{"repo": "a/b", "number": 1}\n{"issue_id": "a/b#2"}\n{"issue_id": "a/b#1"}\n')
+    path.write_text('{"repo": "a/b", "number": 1}\n{"issue_id": "a/b#2"}\n{"issue_id": "a/b#1"}\n', encoding="utf-8")
     assert load_selection(path) == [("a/b", 1), ("a/b", 2)]
 
 
@@ -453,12 +453,12 @@ def test_cli_shallow_end_to_end(shallow_env, tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     app_config = tmp_path / "app.yaml"
     app_config.write_text("paths:\n" + "".join(
-        f"  {name}: {tmp_path / name}\n" for name in ("raw_dir", "processed_dir", "cache_dir", "manifest_dir")))
+        f"  {name}: {tmp_path / name}\n" for name in ("raw_dir", "processed_dir", "cache_dir", "manifest_dir")), encoding="utf-8")
 
     code = cli.main(["--mode", "shallow", "--repo", REPO, "--app-config", str(app_config)])
     assert code == 0
     assert len(read_jsonl(tmp_path / "processed_dir" / "shallow_issues.jsonl")) == 2
-    stats = json.loads((tmp_path / "processed_dir" / "collection_stats.json").read_text())
+    stats = json.loads((tmp_path / "processed_dir" / "collection_stats.json").read_text(encoding="utf-8"))
     assert stats["shallow"]["totals"]["shallow_candidates"] == 2
     assert "얕은 수집 후보: 2" in capsys.readouterr().out
 
