@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-21T07:55:11+00:00",
+  "generated_at": "2026-10-21T08:41:26+00:00",
   "scope": "기업 운영 플랫폼과 유사한 오픈소스 서비스의 장애 및 운영 이슈",
   "categories": [
     "async_event",
@@ -18,32 +18,32 @@
   },
   "by_category": {
     "async_event": {
-      "index": 182,
+      "index": 177,
       "evaluation": 53
     },
     "api_ui": {
-      "index": 134,
-      "evaluation": 36
+      "index": 139,
+      "evaluation": 37
     },
     "deployment_upgrade": {
       "index": 103,
-      "evaluation": 17
+      "evaluation": 16
     },
     "database_search": {
-      "index": 81,
+      "index": 78,
       "evaluation": 26
     },
     "auth": {
-      "index": 80,
+      "index": 83,
       "evaluation": 28
     }
   },
   "repo_category_index": {
     "airbytehq/airbyte": {
+      "async_event": 42,
       "database_search": 12,
-      "async_event": 45,
-      "deployment_upgrade": 16,
-      "api_ui": 2
+      "deployment_upgrade": 19,
+      "auth": 2
     },
     "conductor-oss/conductor": {
       "database_search": 14,
@@ -87,48 +87,48 @@
       "deployment_upgrade": 3
     },
     "thingsboard/thingsboard": {
-      "async_event": 22,
-      "deployment_upgrade": 23,
-      "api_ui": 23,
-      "database_search": 4,
-      "auth": 3
+      "async_event": 20,
+      "deployment_upgrade": 20,
+      "api_ui": 30,
+      "database_search": 1,
+      "auth": 4
     }
   },
   "issue_types_index": {
-    "bug": 522,
-    "unknown": 15,
-    "question": 43
+    "bug": 520,
+    "unknown": 23,
+    "question": 37
   },
   "evidence_by_category_index": {
     "async_event": {
+      "weak": 46,
       "strong": 71,
-      "medium": 88,
-      "weak": 23
+      "medium": 60
     },
     "api_ui": {
-      "medium": 53,
+      "medium": 58,
       "weak": 16,
       "strong": 65
     },
     "deployment_upgrade": {
-      "medium": 69,
-      "weak": 7,
+      "medium": 61,
+      "weak": 15,
       "strong": 27
     },
     "database_search": {
       "strong": 41,
-      "medium": 31,
-      "weak": 9
+      "weak": 16,
+      "medium": 21
     },
     "auth": {
+      "weak": 12,
       "strong": 37,
-      "medium": 33,
-      "weak": 10
+      "medium": 34
     }
   },
   "tag_only_counts": {
     "performance_reliability": {
-      "index": 45,
+      "index": 46,
       "evaluation": 13
     }
   },
@@ -137,8 +137,8 @@
       "required": 10,
       "actual": {
         "async_event": 53,
-        "api_ui": 36,
-        "deployment_upgrade": 17,
+        "api_ui": 37,
+        "deployment_upgrade": 16,
         "database_search": 26,
         "auth": 28
       },
@@ -146,12 +146,12 @@
     },
     "max_category_share": {
       "required": 0.4,
-      "actual": 0.314,
+      "actual": 0.305,
       "passed": true
     },
     "strong_or_medium_ratio": {
       "required": 0.8,
-      "actual": 0.888,
+      "actual": 0.819,
       "passed": true
     },
     "out_of_scope_categories": []

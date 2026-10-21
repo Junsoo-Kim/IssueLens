@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-21T07:31:28+00:00",
+  "generated_at": "2026-10-21T08:40:52+00:00",
   "profile": "mvp",
   "targets": {
     "index": 75,
@@ -15,37 +15,38 @@
       "maintainers_inferred": 9,
       "evidence": {
         "strong": 29,
-        "medium": 71,
-        "weak": 31,
-        "none": 69
+        "medium": 23,
+        "weak": 43,
+        "none": 105
       },
       "signal_ratio": {
         "merged_pr": 0.145,
         "closed_by_commit": 0.0,
-        "maintainer_detail": 0.455,
-        "maintainer_comment": 0.51,
-        "resolution_comment": 0.58,
+        "maintainer_detail": 0.2,
+        "maintainer_comment": 0.26,
+        "resolution_comment": 0.37,
         "official_doc": 0.095,
         "connected_without_pr": 0.0
       },
-      "bot_only_ratio": 0.18,
+      "bot_only_ratio": 0.235,
       "final": {
         "index": 75,
         "evaluation": 20,
-        "reserve": 5,
+        "reserve": 0,
         "after_cutoff": 10,
-        "unused": 90
+        "unused": 95
       },
       "index_evidence": {
+        "weak": 40,
         "strong": 17,
-        "medium": 58
+        "medium": 18
       },
       "evaluation_evidence": {
         "medium": 5,
         "strong": 12,
         "weak": 3
       },
-      "below_threshold_index": 0,
+      "below_threshold_index": 40,
       "weak_evaluation": 3,
       "shortfall": {
         "index": 0,
@@ -162,7 +163,7 @@
         "merged_pr": 0.21,
         "closed_by_commit": 0.01,
         "maintainer_detail": 0.36,
-        "maintainer_comment": 0.675,
+        "maintainer_comment": 0.67,
         "resolution_comment": 0.445,
         "official_doc": 0.05,
         "connected_without_pr": 0.005
@@ -341,43 +342,43 @@
       "maintainers_inferred": 4,
       "evidence": {
         "strong": 12,
-        "medium": 119,
-        "weak": 59,
-        "none": 10
+        "medium": 82,
+        "weak": 66,
+        "none": 40
       },
       "signal_ratio": {
         "merged_pr": 0.055,
         "closed_by_commit": 0.005,
-        "maintainer_detail": 0.64,
-        "maintainer_comment": 0.9,
-        "resolution_comment": 0.685,
-        "official_doc": 0.265,
+        "maintainer_detail": 0.455,
+        "maintainer_comment": 0.7,
+        "resolution_comment": 0.52,
+        "official_doc": 0.255,
         "connected_without_pr": 0.01
       },
-      "bot_only_ratio": 0.0,
+      "bot_only_ratio": 0.06,
       "final": {
         "index": 75,
         "evaluation": 20,
         "reserve": 5,
-        "after_cutoff": 3,
-        "unused": 97
+        "after_cutoff": 4,
+        "unused": 96
       },
       "index_evidence": {
         "medium": 64,
         "strong": 11
       },
       "evaluation_evidence": {
-        "medium": 15,
-        "weak": 4,
+        "medium": 14,
+        "weak": 5,
         "strong": 1
       },
       "below_threshold_index": 0,
-      "weak_evaluation": 4,
+      "weak_evaluation": 5,
       "shortfall": {
         "index": 0,
         "evaluation": 0
       },
-      "evaluation_closed_from": "2026-07-01T07:36:12Z",
+      "evaluation_closed_from": "2026-06-30T12:39:05Z",
       "index_closed_to": "2026-06-29T08:10:09Z",
       "raw_missing": 0
     }
@@ -385,9 +386,9 @@
   "totals": {
     "index": 580,
     "evaluation": 160,
-    "reserve": 30,
-    "below_threshold_index": 65,
-    "weak_evaluation": 49,
+    "reserve": 25,
+    "below_threshold_index": 105,
+    "weak_evaluation": 50,
     "repos_short": 2
   }
 }

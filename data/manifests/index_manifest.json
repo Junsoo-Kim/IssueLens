@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-21T08:24:35+00:00",
+  "generated_at": "2026-10-21T08:41:23+00:00",
   "index_version": "1",
   "tokenizer_version": "1",
   "splits": [
@@ -50,32 +50,33 @@
       "open-metadata/OpenMetadata": 57,
       "thingsboard/thingsboard": 75
     },
-    "documents": 3667,
+    "documents": 3725,
     "documents_by_type": {
       "issue_body": 580,
-      "comment": 1907,
+      "comment": 1965,
       "pull_request": 272,
       "pull_patch": 908
     },
-    "rejected_documents": 3421,
+    "rejected_documents": 3472,
     "rejected_by_reason": {
-      "bot_comment": 404,
-      "noise_or_too_short": 87,
+      "bot_comment": 418,
+      "noise_or_too_short": 89,
       "patch_over_limit": 2320,
       "patch_unavailable": 30,
+      "automated_notice": 36,
       "pr_not_merged": 41,
-      "comment_over_limit": 127,
+      "comment_over_limit": 126,
       "generated_or_binary_file": 412
     },
-    "chunks": 10622,
+    "chunks": 10520,
     "chunks_by_type": {
-      "issue_body": 3473,
-      "comment": 3294,
+      "issue_body": 3245,
+      "comment": 3420,
       "pull_request": 1477,
       "pull_patch": 2378
     },
     "redacted_documents": 140,
-    "truncated_documents": 97,
+    "truncated_documents": 90,
     "maintainers_by_repo": {
       "airbytehq/airbyte": 9,
       "conductor-oss/conductor": 8,
@@ -99,14 +100,14 @@
       "thingsboard/thingsboard": 75
     },
     "issue_documents": {
-      "airbytehq/airbyte": 1648,
+      "airbytehq/airbyte": 1622,
       "conductor-oss/conductor": 1030,
       "datahub-project/datahub": 1618,
       "getsentry/sentry": 1040,
       "keycloak/keycloak": 1433,
       "langgenius/dify": 1751,
       "open-metadata/OpenMetadata": 1052,
-      "thingsboard/thingsboard": 1050
+      "thingsboard/thingsboard": 974
     }
   },
   "sync": {
@@ -121,19 +122,19 @@
     "issue_documents": {
       "added": 0,
       "updated": 0,
-      "unchanged": 10622,
+      "unchanged": 10520,
       "deleted": 0,
-      "total": 10622,
+      "total": 10520,
       "dimensions": 1536
     }
   },
   "verification": {
     "issue_metadata_bm25": 580,
-    "issue_documents_bm25": 10622,
+    "issue_documents_bm25": 10520,
     "every_issue_has_documents": true,
     "issue_metadata_chroma": 580,
     "issue_metadata_ids_match": true,
-    "issue_documents_chroma": 10622,
+    "issue_documents_chroma": 10520,
     "issue_documents_ids_match": true
   },
   "missing_issues": []
