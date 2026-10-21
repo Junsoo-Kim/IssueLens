@@ -1,0 +1,52 @@
+# 검색 초기 설정 (기획서 9.9절, 6.3절, 9.1절)
+embedding:
+  provider: openai
+  model: text-embedding-3-small
+  distance: cosine
+
+collections:
+  issue_metadata: issue_metadata
+  issue_documents: issue_documents
+
+chunking:
+  issue_body: {chunk_size: 900, chunk_overlap: 150}
+  comment: {chunk_size: 700, chunk_overlap: 100}
+  pull_request: {chunk_size: 800, chunk_overlap: 120}
+  pull_patch: {chunk_size: 1200, chunk_overlap: 0}
+  official_doc: {chunk_size: 1000, chunk_overlap: 150}
+
+retrieval:
+  route:
+    max_repositories: 2
+    cross_repo_fallback: true
+  issue:
+    sparse_top_k: 30
+    dense_top_k: 30
+    fused_top_k: 30
+    rerank_top_k: 8
+  document:
+    sparse_top_k: 40
+    dense_top_k: 40
+    fused_top_k: 30
+    rerank_top_k: 12
+    final_evidence_limit: 8
+  fusion:
+    method: rrf
+    rrf_k: 60
+    weights:
+      error_log: {sparse: 0.60, dense: 0.40}
+      natural_language: {sparse: 0.40, dense: 0.60}
+      condition_search: {sparse: 0.50, dense: 0.50}
+      selected_issue: {sparse: 0.40, dense: 0.60}
+  reranker:
+    enabled: false
+    model: BAAI/bge-reranker-v2-m3
+    candidate_top_k: 30
+    enable_only_if_eval_improves: true
+  diversity:
+    max_evidence_per_issue: 3
+    max_evidence_per_document_type: 4
+  mmr_experiment:
+    fetch_k: 30
+    k: 10
+    lambda_mult: 0.5

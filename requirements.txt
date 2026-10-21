@@ -1,0 +1,39 @@
+# IssueLens 프로젝트 의존성 — 기획서 4.3절(요구사항 정의서) 고정 버전 기준
+#
+#     pip install -r requirements.txt
+#
+# Python 3.10 이상. 선택 기능은 requirements-optional.txt를 추가로 설치한다.
+
+# UI
+streamlit==1.62.0
+
+# RAG
+langchain==1.3.14
+langchain-core==1.6.0
+langchain-openai==1.4.3
+langchain-text-splitters==1.1.2
+
+# 그래프
+langgraph==1.2.10
+
+# 관측 및 평가
+langsmith==0.10.17
+
+# Vector DB
+chromadb==1.5.9
+langchain-chroma==1.1.0
+
+# Sparse 검색 (BM25Okapi)
+rank-bm25==0.2.2
+
+# LLM SDK
+openai==2.54.0
+
+# HTTP 및 설정
+requests==2.34.2
+python-dotenv==1.2.3
+typing-extensions==4.16.0
+pyyaml==6.0.3            # configs/*.yaml 로드 (기획서 버전 미지정)
+
+# 테스트
+pytest==9.1.1            # 기획서 버전 미지정

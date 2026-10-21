@@ -1,0 +1,22 @@
+# 비밀정보
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# 수집 원본과 생성 데이터 (디렉터리 구조만 유지)
+data/raw/**
+data/cache/**
+data/processed/**
+chroma_db/**
+sparse_index/**
+!**/.gitkeep
+
+# 기타
+.DS_Store
+.idea/
+.vscode/
