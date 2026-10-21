@@ -11,7 +11,7 @@ from pathlib import PurePosixPath
 from src.collectors.comment_collector import comment_priority
 from src.preprocessing.metadata_builder import content_hash
 from src.preprocessing.normalizer import normalize_markdown
-from src.preprocessing.resolution import is_bot
+from src.preprocessing.resolution import is_automated_notice, is_bot
 from src.preprocessing.secret_redactor import redact
 
 MIN_COMMENT_CHARS = 30
@@ -78,6 +78,8 @@ def build_comment_documents(comments: list[dict], issue_item: dict, issue_author
         body, truncated, counts = _clean(c.get("body"))
         if is_bot(c):
             reject = "bot_comment"
+        elif is_automated_notice(c):
+            reject = "automated_notice"
         elif len(body) < MIN_COMMENT_CHARS or NOISE_COMMENT.match(body):
             reject = "noise_or_too_short"
         if reject:

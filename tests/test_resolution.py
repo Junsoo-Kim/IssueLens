@@ -133,3 +133,59 @@ def test_cli_end_to_end(tmp_path, capsys):
     report = json.loads((tmp_path / "m" / "resolution_report.json").read_text(encoding="utf-8"))
     assert report["repositories"][0]["maintainers_inferred"] == 1
     assert "합계: 색인 2" in capsys.readouterr().out
+
+
+AIRBYTE_NOTICE = ("At Airbyte, we seek to be clear about the project priorities and roadmap. This issue has not had "
+                  "any activity for 365 days, suggesting that it's not as critical as others. It's possible it has "
+                  "already been fixed.")
+
+
+@pytest.mark.parametrize("body", [
+    AIRBYTE_NOTICE,
+    "This issue has been automatically marked as stale because it has not had recent activity.",
+    "Closing due to inactivity. Feel free to reopen.",
+    "This issue will be closed in 7 days if no further activity occurs.",
+])
+def test_automated_notice_is_not_evidence(body):
+    from src.preprocessing.resolution import is_automated_notice
+
+    notice = comment(body, "MEMBER", login="triager")
+    assert is_automated_notice(notice)
+    result = judge_evidence({"repo": REPO}, [notice])
+    assert result["evidence_level"] == "none" and result["human_comments"] == 0
+
+
+def test_real_fix_comment_is_not_a_notice():
+    from src.preprocessing.resolution import is_automated_notice
+
+    assert not is_automated_notice(comment("Fixed in chart 2.2.0. The issue was auto-closed when the fix merged."))
+
+
+def test_inspect_deep_compare_only_does_not_write(tmp_path, capsys):
+    from scripts.inspect_deep import main
+
+    raw = RawStore(tmp_path / "raw")
+    selection = [{"issue_id": f"{REPO}#{n}", "repo": REPO, "number": n, "quality_score": 5, "signal_count": 3,
+                  "closed_at": f"2026-01-{n:02d}T00:00:00Z"} for n in (1, 2)]
+    for n in (1, 2):
+        raw.save(REPO, "issues", str(n), {"user": {"login": "reporter"}})
+    raw.save(REPO, "comments", "1", [comment(AIRBYTE_NOTICE, "MEMBER")])
+    raw.save(REPO, "comments", "2", [comment("Fixed in 26.0.2, please upgrade", "MEMBER")])
+    write_jsonl_atomic(tmp_path / "sel.jsonl", selection)
+    write_jsonl_atomic(tmp_path / "deep.jsonl", [{"issue_id": f"{REPO}#{n}", "repo": REPO} for n in (1, 2)])
+    manifest = tmp_path / "m"
+    write_jsonl_atomic(manifest / "final_selection.jsonl", [
+        {"issue_id": f"{REPO}#1", "final_split": "index", "evidence_level": "weak"},
+        {"issue_id": f"{REPO}#2", "final_split": "evaluation", "evidence_level": "medium"}])
+    before = (manifest / "final_selection.jsonl").read_text(encoding="utf-8")
+    config = tmp_path / "repos.yaml"
+    config.write_text("selection_profiles:\n  tiny: {deep_target_count: 2, index_target_count: 1, "
+                      f"evaluation_holdout_count: 1, reserve_count: 0}}\nrepositories:\n  - repo: {REPO}\n", encoding="utf-8")
+    code = main(["--selection", str(tmp_path / "sel.jsonl"), "--deep-issues", str(tmp_path / "deep.jsonl"),
+                 "--raw-dir", str(tmp_path / "raw"), "--processed-dir", str(tmp_path / "p"), "--manifest-dir", str(manifest),
+                 "--config", str(config), "--profile", "tiny", "--compare-only"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "index: weak → none  1건" in out and "index → unused  1건" in out
+    assert (manifest / "final_selection.jsonl").read_text(encoding="utf-8") == before
+    assert not (tmp_path / "p").exists()

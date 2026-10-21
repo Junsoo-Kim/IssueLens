@@ -110,6 +110,33 @@ def format_report(report: dict) -> str:
     return "\n".join(lines)
 
 
+def compare_with_existing(final_rows: list[dict], existing_path: Path) -> dict:
+    """판정 규칙을 바꾼 뒤 기존 최종 분리와 무엇이 달라지는지 센다."""
+    existing = {r["issue_id"]: r for r in read_jsonl(existing_path)} if existing_path.exists() else {}
+    current = {r["issue_id"]: r for r in final_rows}
+    level_changes = Counter()
+    for issue_id, old in existing.items():
+        new = current.get(issue_id)
+        if new and new["evidence_level"] != old["evidence_level"]:
+            level_changes[(old["final_split"], old["evidence_level"], new["evidence_level"])] += 1
+    kept = {"index", "evaluation", "reserve"}
+    split_changes = Counter(
+        (existing[i]["final_split"] if i in existing else "-", r["final_split"])
+        for i, r in current.items()
+        if (existing[i]["final_split"] if i in existing else "-") != r["final_split"]
+        and ((i in existing) or r["final_split"] in kept)
+    )
+    return {"existing": len(existing), "level_changes": level_changes, "split_changes": split_changes}
+
+
+def format_comparison(diff: dict) -> str:
+    lines = [f"기존 final_selection: {diff['existing']}건 (파일은 바꾸지 않음)", "== 증거 수준 변화 (기존 분리, 이전 → 이후)"]
+    lines += [f"  {split}: {old} → {new}  {n}건" for (split, old, new), n in sorted(diff["level_changes"].items())] or ["  없음"]
+    lines.append("== 분리 변화 (이전 → 이후)")
+    lines += [f"  {old} → {new}  {n}건" for (old, new), n in sorted(diff["split_changes"].items())] or ["  없음"]
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="상세 수집 점검과 해결 근거 기반 최종 분리")
     parser.add_argument("--selection", type=Path, default=ROOT / "data/manifests/deep_selection.jsonl")
@@ -122,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--min-evidence", choices=EVIDENCE_LEVELS, default="medium", help="색인 우선 기준")
     parser.add_argument("--eval-min-evidence", choices=EVIDENCE_LEVELS, default="weak",
                         help="평가 기준이자 색인 보충 하한")
+    parser.add_argument("--compare-only", action="store_true",
+                        help="파일을 쓰지 않고 기존 final_selection.jsonl과 증거 수준·분리 차이만 출력")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
@@ -158,6 +187,10 @@ def main(argv: list[str] | None = None) -> int:
         finalized = assign_splits(rows, targets, args.min_evidence, args.eval_min_evidence)
         final_rows.extend(finalized)
         repo_summaries.append(summarize(repo, finalized, maintainers, targets))
+
+    if args.compare_only:
+        print(format_comparison(compare_with_existing(final_rows, args.manifest_dir / "final_selection.jsonl")))
+        return 0
 
     evidence_fields = ("issue_id", "repo", "number", "final_split", "evidence_level", *FLAG_NAMES,
                        "merged_prs", "linked_prs", "human_comments", "bot_comments")
