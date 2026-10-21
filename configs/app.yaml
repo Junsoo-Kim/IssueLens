@@ -13,6 +13,10 @@ http:                       # 기획서 5.7절, request_interval_seconds는 내�
   max_retries: 5
   backoff_factor: 2
   request_interval_seconds: 0.5
+  search_interval_seconds: 2.0   # Search API는 분당 30회 한도라 별도 간격을 둔다
+
+collection:
+  max_linked_prs: 5         # 이슈당 연결 PR 상세 수집 상한
 
 paths:
   raw_dir: data/raw/github
