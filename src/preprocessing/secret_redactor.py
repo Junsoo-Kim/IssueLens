@@ -33,7 +33,11 @@ def _mask_ip(match: re.Match, counts: Counter) -> str:
     octets = [int(g) for g in match.groups()]
     if any(o > 255 for o in octets):
         return match.group(0)
-    address = ipaddress.ip_address(match.group(0))
+    try:
+        address = ipaddress.ip_address(match.group(0))
+    except ValueError:
+        # "0.40.12.001"처럼 앞자리 0이 있는 값은 IP가 아니라 시간·버전 문자열이다
+        return match.group(0)
     if address.is_private or address.is_loopback or address.is_link_local or address.is_unspecified:
         return match.group(0)
     # "4.2.1.2" 같은 4자리 버전과 구분하기 위해 두 자리 이상 큰 값이 2개 이상일 때만 공인 IP로 본다

@@ -39,9 +39,20 @@ def test_redact_masks_secrets(text, expected, kind):
     "connect to 192.168.1.20 and 127.0.0.1",
     "upgrade to TBE 4.2.1.2 fixed it",
     "version 3.10.4.1",
+    "elapsed 0.40.12.001 and 10.020.30.40",
 ])
 def test_redact_keeps_non_secrets(text):
     assert redact(text) == (text, {})
+
+
+def test_redact_and_normalize_never_raise_on_random_input():
+    import random
+
+    rng = random.Random(0)
+    alphabet = "0123456789....:=/@-_ abcxyzABC\n`#<>!"
+    for _ in range(3000):
+        text = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 80)))
+        normalize_markdown(redact(text)[0])
 
 
 def test_redact_private_key_block():
