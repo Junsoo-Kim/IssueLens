@@ -1,7 +1,6 @@
 """BM25 Sparse 검색. 저장소별 인덱스를 필요할 때 불러온다."""
 from __future__ import annotations
 
-from itertools import zip_longest
 from pathlib import Path
 from typing import Callable
 
@@ -22,12 +21,13 @@ class SparseRetriever:
 
     def search(self, query: str, repos: list[str], top_k: int,
                allow: Callable[[str], bool] | None = None) -> list[tuple[str, float]]:
-        """저장소별로 top_k를 구한 뒤 순위를 번갈아 합친다.
+        """저장소별로 top_k를 구한 뒤 점수순으로 합친다.
 
-        BM25 점수는 저장소별 통계로 계산돼 저장소 사이에 직접 비교할 수 없으므로 점수가 아니라 순위로 섞는다.
+        BM25 통계는 저장소별이지만, 선별 단계에서 저장소별 색인 규모를 비슷하게 맞춰 점수를 직접 비교해도
+        왜곡이 작다. 순위를 번갈아 섞으면 매치 강도가 사라져 약한 매치가 저장소 순서만으로 앞설 수 있다.
         """
         tokens = tokenize(query)
-        per_repo = []
+        hits = []
         for repo in repos:
             index = self._index(repo)
             if index is None or index._bm25 is None:
@@ -37,6 +37,5 @@ class SparseRetriever:
                 (i for i in range(len(index.ids)) if scores[i] > 0 and (allow is None or allow(index.ids[i]))),
                 key=lambda i: (-scores[i], index.ids[i]),
             )
-            per_repo.append([(index.ids[i], float(scores[i])) for i in ranked[:top_k]])
-        merged = [hit for group in zip_longest(*per_repo) for hit in group if hit is not None]
-        return merged[:top_k]
+            hits.extend((index.ids[i], float(scores[i])) for i in ranked[:top_k])
+        return sorted(hits, key=lambda h: (-h[1], h[0]))[:top_k]
