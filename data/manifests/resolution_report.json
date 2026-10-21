@@ -1,0 +1,393 @@
+{
+  "generated_at": "2026-10-21T07:31:28+00:00",
+  "profile": "mvp",
+  "targets": {
+    "index": 75,
+    "evaluation": 20,
+    "reserve": 5
+  },
+  "min_evidence": "medium",
+  "eval_min_evidence": "weak",
+  "repositories": [
+    {
+      "repo": "airbytehq/airbyte",
+      "collected": 200,
+      "maintainers_inferred": 9,
+      "evidence": {
+        "strong": 29,
+        "medium": 71,
+        "weak": 31,
+        "none": 69
+      },
+      "signal_ratio": {
+        "merged_pr": 0.145,
+        "closed_by_commit": 0.0,
+        "maintainer_detail": 0.455,
+        "maintainer_comment": 0.51,
+        "resolution_comment": 0.58,
+        "official_doc": 0.095,
+        "connected_without_pr": 0.0
+      },
+      "bot_only_ratio": 0.18,
+      "final": {
+        "index": 75,
+        "evaluation": 20,
+        "reserve": 5,
+        "after_cutoff": 10,
+        "unused": 90
+      },
+      "index_evidence": {
+        "strong": 17,
+        "medium": 58
+      },
+      "evaluation_evidence": {
+        "medium": 5,
+        "strong": 12,
+        "weak": 3
+      },
+      "below_threshold_index": 0,
+      "weak_evaluation": 3,
+      "shortfall": {
+        "index": 0,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-08-24T19:29:39Z",
+      "index_closed_to": "2026-08-24T19:28:40Z",
+      "raw_missing": 0
+    },
+    {
+      "repo": "conductor-oss/conductor",
+      "collected": 127,
+      "maintainers_inferred": 8,
+      "evidence": {
+        "strong": 21,
+        "medium": 43,
+        "weak": 29,
+        "none": 34
+      },
+      "signal_ratio": {
+        "merged_pr": 0.134,
+        "closed_by_commit": 0.039,
+        "maintainer_detail": 0.394,
+        "maintainer_comment": 0.63,
+        "resolution_comment": 0.457,
+        "official_doc": 0.008,
+        "connected_without_pr": 0.047
+      },
+      "bot_only_ratio": 0.0,
+      "final": {
+        "index": 73,
+        "evaluation": 20,
+        "reserve": 0,
+        "after_cutoff": 6,
+        "unused": 28
+      },
+      "index_evidence": {
+        "medium": 35,
+        "strong": 16,
+        "weak": 22
+      },
+      "evaluation_evidence": {
+        "weak": 7,
+        "medium": 8,
+        "strong": 5
+      },
+      "below_threshold_index": 22,
+      "weak_evaluation": 7,
+      "shortfall": {
+        "index": 2,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-08-03T20:19:19Z",
+      "index_closed_to": "2026-08-03T20:19:05Z",
+      "raw_missing": 0
+    },
+    {
+      "repo": "datahub-project/datahub",
+      "collected": 200,
+      "maintainers_inferred": 15,
+      "evidence": {
+        "strong": 66,
+        "medium": 32,
+        "weak": 53,
+        "none": 49
+      },
+      "signal_ratio": {
+        "merged_pr": 0.325,
+        "closed_by_commit": 0.005,
+        "maintainer_detail": 0.345,
+        "maintainer_comment": 0.62,
+        "resolution_comment": 0.4,
+        "official_doc": 0.06,
+        "connected_without_pr": 0.015
+      },
+      "bot_only_ratio": 0.07,
+      "final": {
+        "index": 75,
+        "evaluation": 20,
+        "reserve": 5,
+        "after_cutoff": 11,
+        "unused": 89
+      },
+      "index_evidence": {
+        "strong": 59,
+        "medium": 16
+      },
+      "evaluation_evidence": {
+        "weak": 7,
+        "strong": 7,
+        "medium": 6
+      },
+      "below_threshold_index": 0,
+      "weak_evaluation": 7,
+      "shortfall": {
+        "index": 0,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-08-05T09:14:47Z",
+      "index_closed_to": "2026-08-03T22:45:55Z",
+      "raw_missing": 0
+    },
+    {
+      "repo": "getsentry/sentry",
+      "collected": 200,
+      "maintainers_inferred": 17,
+      "evidence": {
+        "strong": 44,
+        "medium": 43,
+        "weak": 60,
+        "none": 53
+      },
+      "signal_ratio": {
+        "merged_pr": 0.21,
+        "closed_by_commit": 0.01,
+        "maintainer_detail": 0.36,
+        "maintainer_comment": 0.675,
+        "resolution_comment": 0.445,
+        "official_doc": 0.05,
+        "connected_without_pr": 0.005
+      },
+      "bot_only_ratio": 0.175,
+      "final": {
+        "index": 75,
+        "evaluation": 20,
+        "reserve": 5,
+        "after_cutoff": 8,
+        "unused": 92
+      },
+      "index_evidence": {
+        "medium": 40,
+        "strong": 35
+      },
+      "evaluation_evidence": {
+        "strong": 9,
+        "medium": 3,
+        "weak": 8
+      },
+      "below_threshold_index": 0,
+      "weak_evaluation": 8,
+      "shortfall": {
+        "index": 0,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-10-05T21:39:47Z",
+      "index_closed_to": "2026-10-05T21:30:39Z",
+      "raw_missing": 0
+    },
+    {
+      "repo": "keycloak/keycloak",
+      "collected": 200,
+      "maintainers_inferred": 10,
+      "evidence": {
+        "strong": 47,
+        "medium": 37,
+        "weak": 48,
+        "none": 68
+      },
+      "signal_ratio": {
+        "merged_pr": 0.185,
+        "closed_by_commit": 0.07,
+        "maintainer_detail": 0.29,
+        "maintainer_comment": 0.54,
+        "resolution_comment": 0.31,
+        "official_doc": 0.03,
+        "connected_without_pr": 0.04
+      },
+      "bot_only_ratio": 0.02,
+      "final": {
+        "index": 75,
+        "evaluation": 20,
+        "reserve": 5,
+        "after_cutoff": 17,
+        "unused": 83
+      },
+      "index_evidence": {
+        "weak": 5,
+        "medium": 32,
+        "strong": 38
+      },
+      "evaluation_evidence": {
+        "medium": 5,
+        "weak": 6,
+        "strong": 9
+      },
+      "below_threshold_index": 5,
+      "weak_evaluation": 6,
+      "shortfall": {
+        "index": 0,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-10-07T18:58:34Z",
+      "index_closed_to": "2026-10-07T12:31:49Z",
+      "raw_missing": 0
+    },
+    {
+      "repo": "langgenius/dify",
+      "collected": 200,
+      "maintainers_inferred": 9,
+      "evidence": {
+        "strong": 63,
+        "medium": 13,
+        "weak": 25,
+        "none": 99
+      },
+      "signal_ratio": {
+        "merged_pr": 0.315,
+        "closed_by_commit": 0.0,
+        "maintainer_detail": 0.095,
+        "maintainer_comment": 0.175,
+        "resolution_comment": 0.21,
+        "official_doc": 0.01,
+        "connected_without_pr": 0.0
+      },
+      "bot_only_ratio": 0.385,
+      "final": {
+        "index": 75,
+        "evaluation": 20,
+        "reserve": 5,
+        "after_cutoff": 13,
+        "unused": 87
+      },
+      "index_evidence": {
+        "weak": 16,
+        "strong": 50,
+        "medium": 9
+      },
+      "evaluation_evidence": {
+        "strong": 13,
+        "medium": 4,
+        "weak": 3
+      },
+      "below_threshold_index": 16,
+      "weak_evaluation": 3,
+      "shortfall": {
+        "index": 0,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-10-15T16:21:10Z",
+      "index_closed_to": "2026-10-15T10:18:43Z",
+      "raw_missing": 0
+    },
+    {
+      "repo": "open-metadata/OpenMetadata",
+      "collected": 200,
+      "maintainers_inferred": 18,
+      "evidence": {
+        "strong": 17,
+        "medium": 27,
+        "weak": 33,
+        "none": 123
+      },
+      "signal_ratio": {
+        "merged_pr": 0.08,
+        "closed_by_commit": 0.005,
+        "maintainer_detail": 0.205,
+        "maintainer_comment": 0.31,
+        "resolution_comment": 0.24,
+        "official_doc": 0.01,
+        "connected_without_pr": 0.045
+      },
+      "bot_only_ratio": 0.01,
+      "final": {
+        "index": 57,
+        "evaluation": 20,
+        "reserve": 0,
+        "after_cutoff": 45,
+        "unused": 78
+      },
+      "index_evidence": {
+        "medium": 20,
+        "weak": 22,
+        "strong": 15
+      },
+      "evaluation_evidence": {
+        "weak": 11,
+        "medium": 7,
+        "strong": 2
+      },
+      "below_threshold_index": 22,
+      "weak_evaluation": 11,
+      "shortfall": {
+        "index": 18,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-10-01T06:09:35Z",
+      "index_closed_to": "2026-09-29T21:25:04Z",
+      "raw_missing": 0
+    },
+    {
+      "repo": "thingsboard/thingsboard",
+      "collected": 200,
+      "maintainers_inferred": 4,
+      "evidence": {
+        "strong": 12,
+        "medium": 119,
+        "weak": 59,
+        "none": 10
+      },
+      "signal_ratio": {
+        "merged_pr": 0.055,
+        "closed_by_commit": 0.005,
+        "maintainer_detail": 0.64,
+        "maintainer_comment": 0.9,
+        "resolution_comment": 0.685,
+        "official_doc": 0.265,
+        "connected_without_pr": 0.01
+      },
+      "bot_only_ratio": 0.0,
+      "final": {
+        "index": 75,
+        "evaluation": 20,
+        "reserve": 5,
+        "after_cutoff": 3,
+        "unused": 97
+      },
+      "index_evidence": {
+        "medium": 64,
+        "strong": 11
+      },
+      "evaluation_evidence": {
+        "medium": 15,
+        "weak": 4,
+        "strong": 1
+      },
+      "below_threshold_index": 0,
+      "weak_evaluation": 4,
+      "shortfall": {
+        "index": 0,
+        "evaluation": 0
+      },
+      "evaluation_closed_from": "2026-07-01T07:36:12Z",
+      "index_closed_to": "2026-06-29T08:10:09Z",
+      "raw_missing": 0
+    }
+  ],
+  "totals": {
+    "index": 580,
+    "evaluation": 160,
+    "reserve": 30,
+    "below_threshold_index": 65,
+    "weak_evaluation": 49,
+    "repos_short": 2
+  }
+}

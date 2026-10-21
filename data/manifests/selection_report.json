@@ -1,0 +1,557 @@
+{
+  "generated_at": "2026-10-21T07:02:08+00:00",
+  "profile": "full",
+  "targets": {
+    "deep": 200,
+    "index": 150,
+    "evaluation": 30,
+    "reserve": 20
+  },
+  "repositories": [
+    {
+      "repo": "airbytehq/airbyte",
+      "total": 1000,
+      "issue_types": {
+        "bug": 661,
+        "unknown": 164,
+        "feature": 149,
+        "task": 25,
+        "test": 1
+      },
+      "reject_reasons": {
+        "insufficient_signals": 304,
+        "type:feature": 149,
+        "type:task": 25,
+        "body_too_short": 15,
+        "duplicate": 3,
+        "type:test": 1
+      },
+      "eligible": 669,
+      "eligible_types": {
+        "bug": 623,
+        "unknown": 46
+      },
+      "selected": {
+        "index": 150,
+        "evaluation": 30,
+        "reserve": 20
+      },
+      "selected_types": {
+        "bug": 193,
+        "unknown": 7
+      },
+      "shortfall": 0,
+      "selected_categories": {
+        "async_event": 125,
+        "deployment_upgrade": 34,
+        "database_search": 28,
+        "api_ui": 5,
+        "auth": 5,
+        "performance_reliability": 3
+      },
+      "top_components": [
+        [
+          "area/connectors",
+          80
+        ],
+        [
+          "area/platform",
+          44
+        ],
+        [
+          "general",
+          24
+        ],
+        [
+          "area/databases",
+          8
+        ],
+        [
+          "area/abctl",
+          5
+        ]
+      ],
+      "quality_score_min": 5,
+      "evaluation_closed_from": "2026-08-24T19:29:39Z",
+      "index_closed_to": "2026-08-24T19:28:40Z"
+    },
+    {
+      "repo": "conductor-oss/conductor",
+      "total": 319,
+      "issue_types": {
+        "bug": 132,
+        "question": 46,
+        "feature": 43,
+        "unknown": 42,
+        "invalid": 32,
+        "task": 17,
+        "test": 7
+      },
+      "reject_reasons": {
+        "insufficient_signals": 167,
+        "type:feature": 43,
+        "type:invalid": 32,
+        "type:task": 17,
+        "body_too_short": 16,
+        "type:test": 7,
+        "type:question": 2
+      },
+      "eligible": 127,
+      "eligible_types": {
+        "bug": 95,
+        "question": 23,
+        "unknown": 9
+      },
+      "selected": {
+        "index": 95,
+        "evaluation": 19,
+        "reserve": 13
+      },
+      "selected_types": {
+        "bug": 95,
+        "question": 23,
+        "unknown": 9
+      },
+      "shortfall": 73,
+      "selected_categories": {
+        "async_event": 65,
+        "api_ui": 20,
+        "database_search": 20,
+        "deployment_upgrade": 14,
+        "auth": 4,
+        "performance_reliability": 4
+      },
+      "top_components": [
+        [
+          "general",
+          113
+        ],
+        [
+          "ui",
+          12
+        ],
+        [
+          "title:security",
+          1
+        ],
+        [
+          "security",
+          1
+        ]
+      ],
+      "quality_score_min": 3,
+      "evaluation_closed_from": "2026-08-04T16:16:33Z",
+      "index_closed_to": "2026-08-04T16:16:04Z"
+    },
+    {
+      "repo": "datahub-project/datahub",
+      "total": 1000,
+      "issue_types": {
+        "bug": 837,
+        "unknown": 104,
+        "feature": 38,
+        "question": 17,
+        "test": 4
+      },
+      "reject_reasons": {
+        "insufficient_signals": 374,
+        "auto_closed": 361,
+        "type:feature": 38,
+        "body_too_short": 22,
+        "type:question": 17,
+        "type:test": 4,
+        "duplicate": 4
+      },
+      "eligible": 454,
+      "eligible_types": {
+        "bug": 438,
+        "unknown": 16
+      },
+      "selected": {
+        "index": 150,
+        "evaluation": 30,
+        "reserve": 20
+      },
+      "selected_types": {
+        "bug": 197,
+        "unknown": 3
+      },
+      "shortfall": 0,
+      "selected_categories": {
+        "async_event": 79,
+        "deployment_upgrade": 42,
+        "database_search": 37,
+        "api_ui": 30,
+        "auth": 12
+      },
+      "top_components": [
+        [
+          "general",
+          178
+        ],
+        [
+          "ingestion",
+          10
+        ],
+        [
+          "platform",
+          2
+        ],
+        [
+          "product",
+          2
+        ],
+        [
+          "devops",
+          1
+        ]
+      ],
+      "quality_score_min": 7,
+      "evaluation_closed_from": "2026-08-05T14:53:26Z",
+      "index_closed_to": "2026-08-05T09:14:47Z"
+    },
+    {
+      "repo": "getsentry/sentry",
+      "total": 1000,
+      "issue_types": {
+        "bug": 428,
+        "feature": 258,
+        "test": 168,
+        "unknown": 121,
+        "task": 22,
+        "question": 3
+      },
+      "reject_reasons": {
+        "insufficient_signals": 474,
+        "type:feature": 258,
+        "type:test": 168,
+        "duplicate": 27,
+        "body_too_short": 24,
+        "type:task": 22,
+        "auto_closed": 9,
+        "type:question": 3
+      },
+      "eligible": 353,
+      "eligible_types": {
+        "bug": 339,
+        "unknown": 14
+      },
+      "selected": {
+        "index": 150,
+        "evaluation": 30,
+        "reserve": 20
+      },
+      "selected_types": {
+        "bug": 198,
+        "unknown": 2
+      },
+      "shortfall": 0,
+      "selected_categories": {
+        "api_ui": 75,
+        "deployment_upgrade": 54,
+        "async_event": 24,
+        "performance_reliability": 20,
+        "database_search": 15,
+        "auth": 12
+      },
+      "top_components": [
+        [
+          "general",
+          42
+        ],
+        [
+          "product area: settings - integrations",
+          40
+        ],
+        [
+          "product area: issues",
+          23
+        ],
+        [
+          "product area: alerts",
+          17
+        ],
+        [
+          "product area: dashboards",
+          17
+        ]
+      ],
+      "quality_score_min": 7,
+      "evaluation_closed_from": "2026-10-05T21:28:37Z",
+      "index_closed_to": "2026-10-05T17:13:45Z"
+    },
+    {
+      "repo": "keycloak/keycloak",
+      "total": 1000,
+      "issue_types": {
+        "bug": 436,
+        "task": 341,
+        "unknown": 90,
+        "feature": 83,
+        "test": 49,
+        "question": 1
+      },
+      "reject_reasons": {
+        "insufficient_signals": 456,
+        "type:task": 341,
+        "type:feature": 83,
+        "body_too_short": 77,
+        "duplicate": 51,
+        "type:test": 49,
+        "auto_closed": 42,
+        "type:question": 1
+      },
+      "eligible": 370,
+      "eligible_types": {
+        "bug": 337,
+        "unknown": 33
+      },
+      "selected": {
+        "index": 150,
+        "evaluation": 30,
+        "reserve": 20
+      },
+      "selected_types": {
+        "bug": 198,
+        "unknown": 2
+      },
+      "shortfall": 0,
+      "selected_categories": {
+        "auth": 147,
+        "api_ui": 19,
+        "async_event": 13,
+        "database_search": 11,
+        "performance_reliability": 5,
+        "deployment_upgrade": 5
+      },
+      "top_components": [
+        [
+          "area/core",
+          21
+        ],
+        [
+          "area/admin/ui",
+          19
+        ],
+        [
+          "area/organizations",
+          14
+        ],
+        [
+          "area/authentication",
+          14
+        ],
+        [
+          "area/admin/api",
+          14
+        ]
+      ],
+      "quality_score_min": 7,
+      "evaluation_closed_from": "2026-10-12T08:59:22Z",
+      "index_closed_to": "2026-10-10T15:25:18Z"
+    },
+    {
+      "repo": "langgenius/dify",
+      "total": 1000,
+      "issue_types": {
+        "bug": 566,
+        "feature": 216,
+        "unknown": 167,
+        "test": 20,
+        "question": 14,
+        "task": 14,
+        "invalid": 3
+      },
+      "reject_reasons": {
+        "insufficient_signals": 361,
+        "type:feature": 216,
+        "auto_closed": 163,
+        "type:test": 20,
+        "duplicate": 18,
+        "type:question": 14,
+        "type:task": 14,
+        "body_too_short": 9,
+        "type:invalid": 3
+      },
+      "eligible": 512,
+      "eligible_types": {
+        "bug": 463,
+        "unknown": 49
+      },
+      "selected": {
+        "index": 150,
+        "evaluation": 30,
+        "reserve": 20
+      },
+      "selected_types": {
+        "bug": 195,
+        "unknown": 5
+      },
+      "shortfall": 0,
+      "selected_categories": {
+        "api_ui": 68,
+        "database_search": 49,
+        "async_event": 31,
+        "deployment_upgrade": 29,
+        "auth": 15,
+        "performance_reliability": 8
+      },
+      "top_components": [
+        [
+          "general",
+          197
+        ],
+        [
+          "feat:agent",
+          2
+        ],
+        [
+          "feat:workflow",
+          1
+        ]
+      ],
+      "quality_score_min": 6,
+      "evaluation_closed_from": "2026-10-16T07:28:44Z",
+      "index_closed_to": "2026-10-16T06:33:07Z"
+    },
+    {
+      "repo": "open-metadata/OpenMetadata",
+      "total": 1000,
+      "issue_types": {
+        "bug": 581,
+        "unknown": 286,
+        "feature": 67,
+        "test": 62,
+        "task": 3,
+        "question": 1
+      },
+      "reject_reasons": {
+        "insufficient_signals": 589,
+        "type:feature": 67,
+        "type:test": 62,
+        "body_too_short": 6,
+        "duplicate": 4,
+        "type:task": 3,
+        "type:question": 1
+      },
+      "eligible": 377,
+      "eligible_types": {
+        "bug": 335,
+        "unknown": 42
+      },
+      "selected": {
+        "index": 150,
+        "evaluation": 30,
+        "reserve": 20
+      },
+      "selected_types": {
+        "bug": 191,
+        "unknown": 9
+      },
+      "shortfall": 0,
+      "selected_categories": {
+        "async_event": 67,
+        "database_search": 59,
+        "api_ui": 41,
+        "auth": 20,
+        "deployment_upgrade": 12,
+        "performance_reliability": 1
+      },
+      "top_components": [
+        [
+          "general",
+          108
+        ],
+        [
+          "connector:other",
+          21
+        ],
+        [
+          "backend",
+          16
+        ],
+        [
+          "ui",
+          14
+        ],
+        [
+          "governance",
+          8
+        ]
+      ],
+      "quality_score_min": 6,
+      "evaluation_closed_from": "2026-10-14T04:51:16Z",
+      "index_closed_to": "2026-10-13T14:23:03Z"
+    },
+    {
+      "repo": "thingsboard/thingsboard",
+      "total": 1000,
+      "issue_types": {
+        "question": 489,
+        "feature": 226,
+        "bug": 174,
+        "unknown": 63,
+        "invalid": 47,
+        "test": 1
+      },
+      "reject_reasons": {
+        "insufficient_signals": 519,
+        "type:feature": 226,
+        "type:invalid": 47,
+        "body_too_short": 11,
+        "duplicate": 8,
+        "type:question": 4,
+        "type:test": 1
+      },
+      "eligible": 442,
+      "eligible_types": {
+        "question": 277,
+        "bug": 143,
+        "unknown": 22
+      },
+      "selected": {
+        "index": 150,
+        "evaluation": 30,
+        "reserve": 20
+      },
+      "selected_types": {
+        "bug": 143,
+        "question": 35,
+        "unknown": 22
+      },
+      "shortfall": 0,
+      "selected_categories": {
+        "deployment_upgrade": 65,
+        "api_ui": 61,
+        "async_event": 52,
+        "database_search": 11,
+        "auth": 9,
+        "performance_reliability": 2
+      },
+      "top_components": [
+        [
+          "general",
+          198
+        ],
+        [
+          "title:edge",
+          1
+        ],
+        [
+          "title:trendz",
+          1
+        ]
+      ],
+      "quality_score_min": 4,
+      "evaluation_closed_from": "2026-05-21T14:20:45Z",
+      "index_closed_to": "2026-05-11T08:34:57Z"
+    }
+  ],
+  "totals": {
+    "deep": 1527,
+    "index": 1145,
+    "evaluation": 229,
+    "reserve": 153,
+    "repos_below_target": 1
+  }
+}

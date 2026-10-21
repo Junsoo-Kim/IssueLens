@@ -6,18 +6,45 @@ defaults:
   index_target_count: 150
   evaluation_holdout_count: 30
   reserve_count: 20
+  allow_questions: false
+
+# 상세 수집 규모. 3일 MVP는 저장소별 100건(색인 75, 평가 20, 예비 5)으로 시작한다 (기획서 1.4절, 14절)
+selection_profiles:
+  mvp: {deep_target_count: 100, index_target_count: 75, evaluation_holdout_count: 20, reserve_count: 5}
+  full: {deep_target_count: 200, index_target_count: 150, evaluation_holdout_count: 30, reserve_count: 20}
+
+# 태깅 규칙. 라벨은 소문자로 바꾸고 이모지와 기호를 제거해 비교한다 ("🐞 bug" -> "bug")
+tagging:
+  # 라벨 -> 이슈 유형. 여러 유형이 붙으면 type_priority 순서로 정한다
+  label_types:
+    invalid: [invalid, not us, wrong-repo, wontfix, "won't fix"]
+    test: [tests, test, flaky-test, flaky, system:flakiness, kind/flaky-test]
+    task: [task, kind/task, kind/cve, dependencies, documentation, area/documentation, type/documentation, kind/documentation]
+    bug: [bug, type/bug, kind/bug, confirmed]
+    question: [question, type/question, kind/question]
+    feature: [enhancement, feature, type/enhancement, improvement, feature-request, kind/enhancement, kind/feature]
+  type_priority: [invalid, test, task, bug, question, feature]
+  # 봇이나 무응답으로 자동 종료된 이슈 표시
+  stale_labels: [stale, no-issue-activity, frozen, status/auto-expire]
+  unreproducible_labels: ["state: unreproducible", cant-reproduce]
+  # 앞쪽 패턴이 우선한다. 저장소별 component_patterns가 이 목록보다 먼저 적용된다
+  component_patterns: ["^area/", "^component/", "^product area:", "^feat:", "^connectors/(source|destination)/"]
 
 # docs_allowlist: 본문을 자동 수집할 공식 문서 도메인 (5.5절 단계 F)
-# category: 저장소 간 확장 검색에 쓰는 공통 상위 범주 (5.4절, 9.7절)
+# categories: 저장소 간 확장 검색에 쓰는 공통 상위 범주 (5.4절, 9.7절). 첫 번째가 분류 실패 시 기본값
+# component_patterns: 접두사 없는 저장소 고유 컴포넌트 라벨
+# allow_questions: 버그 이슈가 부족한 저장소는 답변이 달린 질문 이슈를 설정·사용법 유형으로 포함
 repositories:
   - repo: datahub-project/datahub
     description: 메타데이터 플랫폼, 검색, 이벤트 처리
     categories: [database_search, async_event, deployment_upgrade]
     docs_allowlist: [datahubproject.io]
+    component_patterns: ["^(ingestion|product|platform|devops)$", "^source:"]
   - repo: open-metadata/OpenMetadata
     description: 데이터 카탈로그, 거버넌스, 파이프라인
     categories: [database_search, api_ui, deployment_upgrade]
     docs_allowlist: [docs.open-metadata.org]
+    component_patterns: ["^connector:", "^(ui|backend|ingestion|governance|data quality|lineage|platform|alerts and notifications)$"]
   - repo: langgenius/dify
     description: 생성형 AI 서비스 플랫폼, 모델 연동
     categories: [api_ui, deployment_upgrade, performance_reliability]
@@ -26,11 +53,14 @@ repositories:
     description: IoT 플랫폼, 텔레메트리, 규칙 엔진
     categories: [async_event, performance_reliability, database_search]
     docs_allowlist: [thingsboard.io]
+    allow_questions: true
   - repo: conductor-oss/conductor
     description: 분산 워크플로 오케스트레이션
     categories: [async_event, performance_reliability]
     docs_allowlist: [conductor-oss.org]
     shallow_candidate_limit: 319
+    allow_questions: true
+    component_patterns: ["^(ui|java|security)$"]
   - repo: airbytehq/airbyte
     description: 데이터 통합, 커넥터, 동기화 작업
     categories: [async_event, database_search, deployment_upgrade]

@@ -16,6 +16,13 @@ chroma_db/**
 sparse_index/**
 !**/.gitkeep
 
+# 이슈 원문이 담긴 수집 결과(*.jsonl)는 공개 저장소에 올리지 않고 로컬에만 둔다.
+# 원문이 없는 수집 통계만 커밋한다.
+!data/processed/collection_stats.json
+
+# 수집 재개용 상태는 로컬에만 둔다 (source_manifest.json, 선택 파일은 커밋)
+data/manifests/*_manifest.jsonl
+
 # 기타
 .DS_Store
 .idea/
