@@ -16,6 +16,14 @@ chroma_db/**
 sparse_index/**
 !**/.gitkeep
 
+# 수집 처리 결과는 커밋한다 (원본 JSON과 캐시는 재수집 가능하므로 제외)
+!data/processed/shallow_issues.jsonl
+!data/processed/deep_issues.jsonl
+!data/processed/collection_stats.json
+
+# 수집 재개용 상태는 로컬에만 둔다 (source_manifest.json, 선택 파일은 커밋)
+data/manifests/*_manifest.jsonl
+
 # 기타
 .DS_Store
 .idea/
