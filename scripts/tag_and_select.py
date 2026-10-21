@@ -69,6 +69,7 @@ def summarize(repo: str, tags: list[dict], result: dict, requested: SplitTargets
         "eligible": len(result["eligible"]),
         "eligible_types": dict(Counter(t["issue_type"] for t in result["eligible"]).most_common()),
         "selected": {name: len(items) for name, items in result["splits"].items()},
+        "selected_types": dict(Counter(t["issue_type"] for t in selected).most_common()),
         "shortfall": max(requested.deep - len(selected), 0),
         "selected_categories": dict(Counter(t["category"] for t in selected).most_common()),
         "top_components": components.most_common(5),
@@ -89,7 +90,7 @@ def format_report(report: dict) -> str:
             + (f" / 부족 {s['shortfall']}" if s["shortfall"] else "") + ")",
             f"유형: {s['issue_types']}",
             f"제외 사유: {s['reject_reasons']}",
-            f"적격 유형: {s['eligible_types']}",
+            f"적격 유형: {s['eligible_types']} / 선별 유형: {s['selected_types']}",
             f"분리: 색인 {sel['index']} / 평가 {sel['evaluation']} / 예비 {sel['reserve']}"
             f" (평가 종료일 >= {s['evaluation_closed_from']}, 색인 종료일 <= {s['index_closed_to']})",
             f"범주: {s['selected_categories']}",

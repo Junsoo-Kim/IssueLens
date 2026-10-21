@@ -18,6 +18,7 @@ STACK_TRACE = re.compile(r"Traceback \(most recent call last\)|^\s+at [\w.$]+\("
 VERSION_TOKEN = re.compile(r"(?<![\d.])v?\d+\.\d+(?:\.\d+)?(?:[-.](?:rc|beta|alpha)\.?\d*)?(?![\d.])", re.IGNORECASE)
 REPRODUCTION = re.compile(r"steps? to reproduce|how to reproduce|reproduc(e|tion) steps|to reproduce", re.IGNORECASE)
 TITLE_PREFIX = re.compile(r"^\s*\[([^\]]{2,40})\]")
+TYPE_WORDS = re.compile(r"\b(bug|feature|feat|enhancement|question|help|fix|issue|request|proposal|rfc|docs?|task)\b")
 
 SECTION_KINDS = {
     "reproduction": re.compile(r"reproduc|steps", re.IGNORECASE),
@@ -136,8 +137,11 @@ def extract_components(labels: list[str], title: str, rules: TaggingRules) -> li
             if pattern.search(label) and label not in components:
                 components.append(label)
     prefix = TITLE_PREFIX.match(title)
-    if prefix and not VERSION_TOKEN.fullmatch(prefix.group(1).strip()):
-        components.append(f"title:{prefix.group(1).strip().lower()}")
+    if prefix:
+        name = prefix.group(1).strip().lower()
+        # "[Bug]", "[Feature]", "[3.32.0]", "[TBE 4.2.1.2]"처럼 유형이나 버전을 적은 접두어는 컴포넌트가 아니다
+        if not (TYPE_WORDS.search(name) or re.search(r"\d", name)):
+            components.append(f"title:{name}")
     return components
 
 

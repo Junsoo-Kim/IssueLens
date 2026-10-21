@@ -108,6 +108,11 @@ def select_repository(tags: list[dict], targets: SplitTargets, allow_questions: 
             eligible.append(tag)
 
     effective = targets.scaled(len(eligible))
-    selected = pick_diverse(eligible, effective.deep)
+    # 질문 이슈는 버그 계열 이슈가 모자랄 때만 채운다
+    primary = [t for t in eligible if t["issue_type"] != "question"]
+    questions = [t for t in eligible if t["issue_type"] == "question"]
+    selected = pick_diverse(primary, effective.deep)
+    if len(selected) < effective.deep:
+        selected += pick_diverse(questions, effective.deep - len(selected))
     splits = split_by_time(selected, effective)
     return {"eligible": eligible, "rejected": rejected, "selected": selected, "splits": splits, "targets": effective}

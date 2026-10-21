@@ -112,8 +112,8 @@ def test_components_from_labels_repo_patterns_and_title_prefix():
     tag = tag_issue(issue(title="[source-postgres] sync fails", labels=["bug", "ingestion", "area/oidc"]), repo_rules)
     assert tag["components"] == ["ingestion", "area/oidc", "title:source-postgres"]
     assert tag["component"] == "ingestion"
-    version_prefix = tag_issue(issue(title="[3.32.0] UI bug", labels=["bug"]), rules())
-    assert version_prefix["component"] == "general"
+    for title in ["[3.32.0] UI bug", "[Bug] UI broken", "[Feature] x", "[TBE 4.2.1.2] crash", "[v1.0-rc/bug] y"]:
+        assert tag_issue(issue(title=title, labels=["bug"]), rules())["component"] == "general", title
 
 
 def test_categories_fall_back_to_repo_default():
@@ -173,6 +173,15 @@ def test_split_by_time_puts_newest_in_evaluation():
     assert [t["number"] for t in splits["evaluation"]] == [9, 8, 7]
     assert max(t["closed_at"] for t in splits["index"]) < min(t["closed_at"] for t in splits["evaluation"])
     assert [t["number"] for t in splits["reserve"]] == [6]  # 남은 것 중 점수가 가장 낮은 이슈
+
+
+def test_questions_only_fill_shortfall():
+    bugs = [tag(i, score=5) for i in range(8)]
+    questions = [tag(100 + i, score=9, issue_type="question") for i in range(10)]
+    enough = select_repository(bugs + questions, SplitTargets(5, 3, 1, 1), allow_questions=True)
+    assert {t["issue_type"] for t in enough["selected"]} == {"bug"}
+    short = select_repository(bugs + questions, SplitTargets(10, 6, 3, 1), allow_questions=True)
+    assert sum(t["issue_type"] == "question" for t in short["selected"]) == 2
 
 
 def test_select_repository_reports_rejections_and_shortfall():
