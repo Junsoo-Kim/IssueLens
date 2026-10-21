@@ -116,6 +116,39 @@ def test_components_from_labels_repo_patterns_and_title_prefix():
         assert tag_issue(issue(title=title, labels=["bug"]), rules())["component"] == "general", title
 
 
+def test_tag_only_category_is_not_primary():
+    from src.preprocessing.tagger import primary_category
+
+    tag_only = {"performance_reliability"}
+    assert primary_category(["performance_reliability", "api_ui"], ["auth"], tag_only) == "api_ui"
+    assert primary_category(["performance_reliability"], ["performance_reliability", "auth"], tag_only) == "auth"
+    tag = tag_issue(issue(title="Dashboard is slow with high CPU and memory leak", body="slow slow page " * 10),
+                    rules(), {"categories": ["async_event"]})
+    assert "performance_reliability" in tag["categories"] and tag["category"] != "performance_reliability"
+
+
+def test_analyze_scope_checks_criteria():
+    from scripts.analyze_scope import analyze
+
+    config = {"scope": {"categories": ["auth", "api_ui"],
+                        "criteria": {"min_evaluation_per_category": 1, "max_category_share": 0.6,
+                                     "min_strong_or_medium_ratio": 0.5}},
+              "tagging": {"tag_only_categories": ["performance_reliability"]},
+              "repositories": [{"repo": REPO, "categories": ["auth"]}]}
+    rows = [
+        {"issue_id": f"{REPO}#1", "repo": REPO, "final_split": "index", "category": "auth", "evidence_level": "strong", "issue_type": "bug"},
+        {"issue_id": f"{REPO}#2", "repo": REPO, "final_split": "index", "category": "performance_reliability", "evidence_level": "weak", "issue_type": "bug"},
+        {"issue_id": f"{REPO}#3", "repo": REPO, "final_split": "evaluation", "category": "api_ui", "evidence_level": "weak", "issue_type": "bug"},
+    ]
+    tagged = {f"{REPO}#2": {"categories": ["performance_reliability", "api_ui"]}}
+    report = analyze(rows, tagged, config)
+    assert report["by_category"] == {"auth": {"index": 1, "evaluation": 0}, "api_ui": {"index": 1, "evaluation": 1}}
+    assert report["tag_only_counts"]["performance_reliability"]["index"] == 1
+    assert report["checks"]["evaluation_per_category"]["passed"] is False  # auth 평가 0건
+    assert report["checks"]["strong_or_medium_ratio"]["actual"] == 0.5
+    assert report["passed"] is False
+
+
 def test_categories_fall_back_to_repo_default():
     assert classify_categories("Something odd", "", [], ["async_event", "auth"]) == ["async_event"]
     assert classify_categories("Kafka consumer lag", "", [], ["auth"])[0] == "async_event"
