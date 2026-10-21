@@ -1,0 +1,92 @@
+{
+  "repositories": {
+    "datahub-project/datahub": {
+      "source": "https://github.com/datahub-project/datahub/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "Apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://github.com/datahub-project/datahub/blob/master/LICENSE"
+      },
+      "collected_at": "2026-10-21T05:50:08+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    },
+    "open-metadata/OpenMetadata": {
+      "source": "https://github.com/open-metadata/OpenMetadata/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "Apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://github.com/open-metadata/OpenMetadata/blob/main/LICENSE"
+      },
+      "collected_at": "2026-10-21T05:50:30+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    },
+    "langgenius/dify": {
+      "source": "https://github.com/langgenius/dify/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "NOASSERTION",
+        "name": "Other",
+        "url": "https://github.com/langgenius/dify/blob/main/LICENSE"
+      },
+      "collected_at": "2026-10-21T05:51:52+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    },
+    "thingsboard/thingsboard": {
+      "source": "https://github.com/thingsboard/thingsboard/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "NOASSERTION",
+        "name": "Other",
+        "url": "https://github.com/thingsboard/thingsboard/blob/master/LICENSE"
+      },
+      "collected_at": "2026-10-21T05:52:14+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    },
+    "conductor-oss/conductor": {
+      "source": "https://github.com/conductor-oss/conductor/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "Apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://github.com/conductor-oss/conductor/blob/main/LICENSE"
+      },
+      "collected_at": "2026-10-21T05:52:22+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    },
+    "airbytehq/airbyte": {
+      "source": "https://github.com/airbytehq/airbyte/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "NOASSERTION",
+        "name": "Other",
+        "url": "https://github.com/airbytehq/airbyte/blob/master/LICENSE"
+      },
+      "collected_at": "2026-10-21T05:53:45+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    },
+    "getsentry/sentry": {
+      "source": "https://github.com/getsentry/sentry/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "NOASSERTION",
+        "name": "Other",
+        "url": "https://github.com/getsentry/sentry/blob/master/LICENSE.md"
+      },
+      "collected_at": "2026-10-21T05:54:07+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    },
+    "keycloak/keycloak": {
+      "source": "https://github.com/keycloak/keycloak/issues",
+      "query": "is:issue is:closed",
+      "license": {
+        "spdx_id": "Apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://github.com/keycloak/keycloak/blob/main/LICENSE.txt"
+      },
+      "collected_at": "2026-10-21T05:55:29+00:00",
+      "note": "코드 라이선스가 이슈와 댓글의 사용자 작성 내용에 자동 적용된다고 가정하지 않는다."
+    }
+  }
+}
