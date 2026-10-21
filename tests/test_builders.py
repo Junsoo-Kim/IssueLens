@@ -154,7 +154,7 @@ def test_comment_documents_keep_top_scored_within_limit():
     documents, rejected = build_comment_documents(comments, item(), "reporter", set())
     assert len(documents) == MAX_COMMENTS_PER_ISSUE
     assert any(d["document_id"].endswith(":999") for d in documents)
-    assert sum(r["reject_reason"].startswith("over_limit") for r in rejected) == 4
+    assert sum(r["reject_reason"].startswith("comment_over_limit") for r in rejected) == 4
 
 
 def test_pull_request_documents():

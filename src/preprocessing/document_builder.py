@@ -97,7 +97,7 @@ def build_comment_documents(comments: list[dict], issue_item: dict, issue_author
         if id(c) not in kept_ids:
             rejected.append({"document_id": f"{issue_item['issue_id']}:comment:{c.get('id')}",
                              "issue_id": issue_item["issue_id"], "document_type": "comment",
-                             "reject_reason": f"over_limit(score={score})"})
+                             "reject_reason": f"comment_over_limit(score={score})"})
     documents = []
     for score, c, body, truncated, counts, role, signals in sorted(kept, key=lambda x: x[1].get("created_at") or ""):
         documents.append(_document(
@@ -139,7 +139,7 @@ def build_pull_request_documents(pr: dict, files: list[dict], issue_item: dict) 
         elif SKIPPED_PATCH_FILES.search(filename):
             reason = "generated_or_binary_file"
         elif patch_files >= MAX_PATCH_FILES_PER_PR:
-            reason = "over_limit"
+            reason = "patch_over_limit"
         else:
             reason = None
         if reason:
