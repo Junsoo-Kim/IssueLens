@@ -194,3 +194,28 @@ def test_build_indexes_skip_embed_and_rejects_evaluation(tmp_path):
     assert code == 0 and report["sync"] == {} and report["verification"]["issue_documents_bm25"] > 0
     assert not (tmp_path / "chroma").exists()
     assert build_indexes.build(args + ["--splits", "index", "evaluation"])[0] == 2
+
+
+def test_embedding_endpoint_prefers_embedding_specific_settings(monkeypatch):
+    from src.indexing.embeddings import LazyOpenAIEmbedder, embedding_endpoint
+
+    for name in ("OPENAI_EMBEDDING_BASE_URL", "OPENAI_EMBEDDING_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://chat.example.com/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "chat-key")
+    assert embedding_endpoint() == ("https://chat.example.com/v1", "chat-key")
+
+    monkeypatch.setenv("OPENAI_EMBEDDING_BASE_URL", "https://embed.example.com/v1")
+    monkeypatch.setenv("OPENAI_EMBEDDING_API_KEY", "embed-key")
+    assert embedding_endpoint() == ("https://embed.example.com/v1", "embed-key")
+    client = LazyOpenAIEmbedder("text-embedding-3-small")._get_client()
+    assert str(client.client._client.base_url).startswith("https://embed.example.com/v1")
+
+
+def test_embedder_requires_key(monkeypatch):
+    from src.indexing.embeddings import LazyOpenAIEmbedder
+
+    for name in ("OPENAI_EMBEDDING_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    with pytest.raises(RuntimeError):
+        LazyOpenAIEmbedder("text-embedding-3-small")(["x"])

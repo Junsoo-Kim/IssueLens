@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import sys
 from collections import Counter, defaultdict
@@ -30,6 +29,7 @@ from src.config import load_yaml  # noqa: E402
 from src.indexing import document_indexer, metadata_indexer  # noqa: E402
 from src.indexing.bm25_indexer import TOKENIZER_VERSION, build_bm25_indexes, load_bm25_ids  # noqa: E402
 from src.indexing.chroma_store import collection_ids, get_collection, open_client, sync_collection  # noqa: E402
+from src.indexing.embeddings import LazyOpenAIEmbedder  # noqa: E402
 from src.preprocessing.document_builder import (  # noqa: E402
     build_comment_documents,
     build_issue_body,
@@ -40,23 +40,6 @@ from src.preprocessing.resolution import infer_maintainers  # noqa: E402
 from src.preprocessing.tagger import primary_category  # noqa: E402
 
 INDEX_VERSION = "1"
-
-
-class LazyOpenAIEmbedder:
-    """실제로 임베딩할 레코드가 있을 때만 OpenAI 클라이언트를 만든다. 주소는 OPENAI_BASE_URL을 따른다."""
-
-    def __init__(self, model: str):
-        self.model = model
-        self._client = None
-
-    def __call__(self, texts: list[str]) -> list[list[float]]:
-        if self._client is None:
-            if not os.getenv("OPENAI_API_KEY"):
-                raise RuntimeError("OPENAI_API_KEY가 설정되지 않았습니다. .env를 확인하거나 --skip-embed로 실행하세요.")
-            from langchain_openai import OpenAIEmbeddings
-            # 토큰 배열 대신 문자열을 보내 OpenAI 호환 주소에서도 동작하게 한다 (청크는 모두 짧다)
-            self._client = OpenAIEmbeddings(model=self.model, check_embedding_ctx_length=False)
-        return self._client.embed_documents(texts)
 
 
 def load_raw(raw_store: RawStore, repo: str, kind: str, number: int):
