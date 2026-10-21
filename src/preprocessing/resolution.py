@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
@@ -36,6 +37,24 @@ def is_bot(comment: dict) -> bool:
     return is_bot_user(comment.get("user"))
 
 
+# 사람 계정으로 올라온 무활동·자동 종료 안내. "It's possible it has already been fixed" 같은 문장 때문에
+# 해결 신호로 오인되므로 근거에서 뺀다
+AUTOMATED_NOTICE = re.compile(
+    r"has not had (?:any )?(?:recent )?activity"
+    r"|(?:automatically|been) (?:marked|closed) (?:as )?(?:stale|inactive)"
+    r"|marked as stale"
+    r"|due to (?:lack of |in)activity"
+    r"|will be (?:automatically )?closed (?:in|if|after)"
+    r"|seek to be clear about the project priorities"
+    r"|this issue (?:is|has been|was) (?:stale|inactive)",
+    re.IGNORECASE,
+)
+
+
+def is_automated_notice(comment: dict) -> bool:
+    return bool(AUTOMATED_NOTICE.search(comment.get("body") or ""))
+
+
 def infer_maintainers(issues: Iterable[dict], min_closures: int = MIN_CLOSURES_FOR_MAINTAINER) -> set[str]:
     """이슈를 min_closures번 이상 닫은 사람 계정을 유지보수자로 본다."""
     closers = Counter(
@@ -53,7 +72,7 @@ def judge_evidence(
     maintainers: set[str] | frozenset[str] = frozenset(),
     docs_allowlist: Iterable[str] = (),
 ) -> dict:
-    human = [c for c in comments if not is_bot(c)]
+    human = [c for c in comments if not is_bot(c) and not is_automated_notice(c)]
     maintainer_flags, detail_flags, resolution_flags = [], [], []
     for c in human:
         signals = set(comment_priority(c, issue_author)["signals"])

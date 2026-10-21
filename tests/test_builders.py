@@ -174,3 +174,10 @@ def test_pull_request_documents():
 
     unmerged, rejected = build_pull_request_documents({**pr, "merged_at": None}, files, item())
     assert unmerged == [] and rejected[0]["reject_reason"] == "pr_not_merged"
+
+
+def test_comment_documents_reject_automated_notices():
+    notice = comment(50, "This issue has not had any activity for 365 days. It's possible it has already been fixed.",
+                     "core-dev", "MEMBER")
+    documents, rejected = build_comment_documents([notice], item(), "reporter", {"core-dev"})
+    assert documents == [] and rejected[0]["reject_reason"] == "automated_notice"

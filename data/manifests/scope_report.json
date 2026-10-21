@@ -1,0 +1,160 @@
+{
+  "generated_at": "2026-10-21T08:41:26+00:00",
+  "scope": "기업 운영 플랫폼과 유사한 오픈소스 서비스의 장애 및 운영 이슈",
+  "categories": [
+    "async_event",
+    "api_ui",
+    "deployment_upgrade",
+    "database_search",
+    "auth"
+  ],
+  "tag_only_categories": [
+    "performance_reliability"
+  ],
+  "category_source": "tagged_issues",
+  "totals": {
+    "index": 580,
+    "evaluation": 160
+  },
+  "by_category": {
+    "async_event": {
+      "index": 177,
+      "evaluation": 53
+    },
+    "api_ui": {
+      "index": 139,
+      "evaluation": 37
+    },
+    "deployment_upgrade": {
+      "index": 103,
+      "evaluation": 16
+    },
+    "database_search": {
+      "index": 78,
+      "evaluation": 26
+    },
+    "auth": {
+      "index": 83,
+      "evaluation": 28
+    }
+  },
+  "repo_category_index": {
+    "airbytehq/airbyte": {
+      "async_event": 42,
+      "database_search": 12,
+      "deployment_upgrade": 19,
+      "auth": 2
+    },
+    "conductor-oss/conductor": {
+      "database_search": 14,
+      "async_event": 41,
+      "api_ui": 9,
+      "deployment_upgrade": 9
+    },
+    "datahub-project/datahub": {
+      "api_ui": 12,
+      "async_event": 35,
+      "database_search": 10,
+      "deployment_upgrade": 15,
+      "auth": 3
+    },
+    "getsentry/sentry": {
+      "database_search": 6,
+      "auth": 4,
+      "api_ui": 39,
+      "deployment_upgrade": 19,
+      "async_event": 7
+    },
+    "keycloak/keycloak": {
+      "auth": 59,
+      "api_ui": 7,
+      "deployment_upgrade": 5,
+      "database_search": 3,
+      "async_event": 1
+    },
+    "langgenius/dify": {
+      "auth": 6,
+      "api_ui": 33,
+      "database_search": 13,
+      "async_event": 10,
+      "deployment_upgrade": 13
+    },
+    "open-metadata/OpenMetadata": {
+      "database_search": 19,
+      "async_event": 21,
+      "api_ui": 9,
+      "auth": 5,
+      "deployment_upgrade": 3
+    },
+    "thingsboard/thingsboard": {
+      "async_event": 20,
+      "deployment_upgrade": 20,
+      "api_ui": 30,
+      "database_search": 1,
+      "auth": 4
+    }
+  },
+  "issue_types_index": {
+    "bug": 520,
+    "unknown": 23,
+    "question": 37
+  },
+  "evidence_by_category_index": {
+    "async_event": {
+      "weak": 46,
+      "strong": 71,
+      "medium": 60
+    },
+    "api_ui": {
+      "medium": 58,
+      "weak": 16,
+      "strong": 65
+    },
+    "deployment_upgrade": {
+      "medium": 61,
+      "weak": 15,
+      "strong": 27
+    },
+    "database_search": {
+      "strong": 41,
+      "weak": 16,
+      "medium": 21
+    },
+    "auth": {
+      "weak": 12,
+      "strong": 37,
+      "medium": 34
+    }
+  },
+  "tag_only_counts": {
+    "performance_reliability": {
+      "index": 46,
+      "evaluation": 13
+    }
+  },
+  "checks": {
+    "evaluation_per_category": {
+      "required": 10,
+      "actual": {
+        "async_event": 53,
+        "api_ui": 37,
+        "deployment_upgrade": 16,
+        "database_search": 26,
+        "auth": 28
+      },
+      "passed": true
+    },
+    "max_category_share": {
+      "required": 0.4,
+      "actual": 0.305,
+      "passed": true
+    },
+    "strong_or_medium_ratio": {
+      "required": 0.8,
+      "actual": 0.819,
+      "passed": true
+    },
+    "out_of_scope_categories": []
+  },
+  "passed": true
+}
