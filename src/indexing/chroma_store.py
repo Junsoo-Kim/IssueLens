@@ -90,7 +90,18 @@ def sync_collection(collection, records: list[dict], embed: Embedder | None, bat
     for start in range(0, len(stale), 1000):
         collection.delete(ids=stale[start:start + 1000])
     result.deleted = len(stale)
+    if result.dimensions is None:
+        result.dimensions = stored_dimensions(collection)
     return result
+
+
+def stored_dimensions(collection) -> int | None:
+    """새로 임베딩한 레코드가 없을 때 저장된 벡터에서 차원을 읽는다."""
+    sample = collection.get(limit=1, include=["embeddings"])
+    embeddings = sample.get("embeddings")
+    if embeddings is None or len(embeddings) == 0:
+        return None
+    return len(embeddings[0])
 
 
 def collection_ids(collection) -> set[str]:

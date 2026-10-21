@@ -108,6 +108,7 @@ def test_sync_collection_is_incremental(tmp_path):
     assert (first.added, first.updated, first.unchanged, first.deleted, first.dimensions) == (5, 0, 0, 0, 8)
     again = sync_collection(collection, records(5), embed)
     assert (again.added, again.updated, again.unchanged, again.deleted) == (0, 0, 5, 0)
+    assert again.dimensions == 8  # 임베딩하지 않아도 저장된 벡터에서 차원을 읽는다
     assert embed.texts == 5  # 두 번째 실행은 임베딩하지 않는다
 
     changed = sync_collection(collection, records(4, suffix=" changed"), embed)
