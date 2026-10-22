@@ -103,7 +103,7 @@ def run_item(item: dict, assistant, raw: RawStore, categories: dict):
         found = issue_log(raw, item["log_from"])
         if not found:
             return None, [], f"{item['log_from']} 원본 로그 없음"
-        state = diagnose(assistant, found["log"]).state
+        state = diagnose(assistant, found["log"], repo=item.get("repo")).state
         return state, check_answer(expect, state, original=item["log_from"]), None
     state = assistant.ask(item["question"], selected_issue_id=item.get("issue"), repo=item.get("repo"))
     return state, check_answer(expect, state, selected=item.get("issue")), None
@@ -148,6 +148,8 @@ def main(argv: list[str] | None = None, **overrides) -> int:
             continue
         lines.append(f"     {outcome_line(item, result, seconds)}")
         lines += [f"     실패: {reason}" for reason in failures]
+        if failures and item["type"] != "condition":  # 원인 파악용: 시도별 판정 이유
+            lines += [f"     - {a['stage']}: {short(a['grade']['reason'], 160)}" for a in result.get("attempts", [])]
         body = (f"조건: {result['conditions']}\n결과: {[c['issue_id'] for c in result['issues']]}"
                 if item["type"] == "condition" else format_state(result, safety))
         details += [f"## {verdict} {item['id']} [{item['type']}] {label}", "", "```text", body, "```", ""]
