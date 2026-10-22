@@ -191,3 +191,12 @@ def test_extract_queries_drops_plain_words_from_exact_tokens():
         "query_type": "natural_language", "candidate_repos": [], "search_queries": ["MySQL sync timeout"],
         "exact_tokens": ["timeout", "MySQL", "sync job", "ERR_CONN-42", "OOM"]}))
     assert extract_queries(llm, question, REPOS).exact_tokens == ["MySQL", "ERR_CONN-42", "OOM"]
+
+
+def test_collection_queries_search_each_token_and_defer_generic_exceptions():
+    from src.collectors.query_time import collection_queries
+
+    queries = collection_queries(["patch fails with null template"],
+                                 ["NullPointerException", "AspectTemplateEngine", "institutionalMemory"])
+    assert queries == ['"AspectTemplateEngine"', '"institutionalMemory"', "patch fails with null template"]
+    assert collection_queries(["q"], ["NullPointerException"]) == ['"NullPointerException"', "q"]

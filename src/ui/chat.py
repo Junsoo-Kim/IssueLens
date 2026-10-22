@@ -99,7 +99,7 @@ def explore_tab(assistant: Assistant, choice: SidebarChoice, root) -> None:
     conditions = result["conditions"]
     st.markdown("**추출된 조건**")
     key_values({"저장소": conditions["repos"] or "제한 없음", "유형": conditions["issue_types"] or "제한 없음",
-                "버전": conditions["versions"] or "제한 없음", "범주": conditions["categories"] or "제한 없음",
+                "버전": conditions["versions"] or "제한 없음", "범주 (판정 참고)": conditions["categories"] or "-",
                 "오류 유형": conditions.get("error_types") or "제한 없음",
                 "증상 검색어": conditions["symptom"]})
     filtered = ", ".join(f"{k} {v}건" for k, v in result["filtered_out"].items()) or "없음"

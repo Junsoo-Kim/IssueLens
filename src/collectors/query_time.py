@@ -35,14 +35,20 @@ IndexDocuments = Callable[[list[dict]], int]
 
 
 VERSION_ONLY = re.compile(r"v?\d+(?:\.\d+)+")
+# 어느 저장소에나 흔해 단독 검색어로는 변별력이 낮은 예외. 다른 토큰이 없을 때만 쓴다
+GENERIC_EXCEPTIONS = {"exception", "error", "runtimeexception", "nullpointerexception", "illegalstateexception",
+                      "illegalargumentexception", "ioexception", "timeoutexception", "valueerror", "keyerror", "typeerror"}
+TOKEN_QUERIES = 2
 
 
 def collection_queries(search_queries: list[str], exact_tokens: list[str], limit: int = 3) -> list[str]:
     """GitHub 검색은 모든 단어가 들어간 이슈만 돌려줘 긴 문장 검색어는 0건이 되기 쉽다.
-    정확 토큰(예외명, 오류 코드)만으로 된 검색어를 맨 앞에 둔다. 매번 같은 검색어라 캐시도 적중한다.
-    버전 번호만으로는 엉뚱한 이슈가 걸리므로 뺀다."""
+    정확 토큰(예외명, 오류 코드, 클래스명)을 하나씩 검색어로 만들어 앞에 둔다. 여러 토큰을 한 검색어에 넣으면
+    모두 함께 나오는 이슈만 걸려 원래 이슈 말고는 찾기 어렵다. 매번 같은 검색어라 캐시도 적중한다.
+    버전 번호만으로는 엉뚱한 이슈가 걸리므로 빼고, 흔한 예외는 뒤로 미룬다."""
     tokens = [t for t in exact_tokens if not VERSION_ONLY.fullmatch(t)]
-    head = [" ".join(f'"{t}"' for t in tokens)] if tokens else []
+    tokens.sort(key=lambda t: t.lower() in GENERIC_EXCEPTIONS)
+    head = [f'"{t}"' for t in tokens[:TOKEN_QUERIES]]
     return list(dict.fromkeys([*head, *search_queries]))[:limit]
 
 

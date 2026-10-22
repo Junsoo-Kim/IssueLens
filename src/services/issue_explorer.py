@@ -1,8 +1,9 @@
 """자연어 조건 기반 이슈 탐색 (요구사항 F2011, 기획서 3.2절).
 
-    1. 조건 추출: 저장소, 이슈 유형, 버전, 범주는 필터로, 증상은 검색어로 쓴다
+    1. 조건 추출: 저장소, 이슈 유형, 버전, 예외명은 필터로, 증상은 검색어로 쓴다.
+       범주는 LLM이 추정하는 값이라 필터로 쓰면 맞는 이슈가 빠지기 쉬워 판정 참고로만 쓴다
     2. RAG 1 Hybrid 검색으로 증상이 비슷한 이슈 후보를 찾는다 (저장소 조건이 있으면 그 안에서만)
-    3. 메타데이터 필터: 유형, 버전, 범주가 맞지 않는 후보를 버린다
+    3. 메타데이터 필터: 유형, 버전, 예외명이 맞지 않는 후보를 버린다
     4. LLM 판정: 남은 후보가 요청에 실제로 맞는지 다시 확인하고 통과한 이슈만 카드로 돌려준다
 """
 from __future__ import annotations
@@ -45,10 +46,6 @@ def filter_reasons(conditions: Conditions, metadata: dict, text: str) -> list[st
         haystack = f"{metadata.get('error_types_csv') or ''} {metadata.get('title') or ''} {text}".lower()
         if not any(name.lower() in haystack for name in conditions.error_types):
             failed.append("오류 유형")
-    if conditions.categories:
-        categories = {metadata.get("category"), *_csv(metadata.get("categories_csv"))}
-        if not categories & set(conditions.categories):
-            failed.append("범주")
     return failed
 
 
