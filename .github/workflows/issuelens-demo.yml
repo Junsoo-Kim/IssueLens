@@ -1,0 +1,29 @@
+# IssueLens PR 리뷰 에이전트 시연: examples/agent_demo를 바꾸는 PR에서만 돈다.
+# 다른 레포에서 쓰는 방법은 docs/issuelens_review_workflow.yml을 참고한다.
+name: IssueLens review (demo)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "examples/agent_demo/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: issuelens-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-base-url: ${{ secrets.OPENAI_BASE_URL }}
