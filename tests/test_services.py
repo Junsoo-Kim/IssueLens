@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from src.prompts.condition_search import extract_conditions, rule_based_conditions
-from src.services.incident_diagnoser import diagnose, diagnosis_question, extract_signals, trim_log
+from src.services.incident_diagnoser import diagnose, diagnosis_question, compact_log, extract_signals
 from src.services.issue_explorer import explore_issues, filter_reasons, version_matches
 from tests.test_graph import KC, FakeLLM, make_assistant, rag_root  # noqa: F401  (픽스처)
 from tests.test_retrieval import index_dirs, make_retriever  # noqa: F401  (픽스처)
@@ -106,7 +106,7 @@ def test_extract_signals_from_java_log():
 
 def test_trim_long_log_keeps_head_and_error_lines():
     log = "\n".join([f"INFO line {i}" for i in range(400)] + ["ERROR final failure TokenVerificationException"])
-    trimmed = trim_log(log)
+    trimmed = compact_log(log)
     assert len(trimmed) <= 3000 and trimmed.startswith("INFO line 0") and "ERROR final failure" in trimmed
     assert "상황 설명: 업그레이드 직후" in diagnosis_question(JAVA_LOG, "업그레이드 직후")
 
@@ -149,3 +149,32 @@ def test_snippet_escapes_markdown():
 
     text = snippet("header\n\n## Environment - **bold** [link](http://x) `code`")
     assert "\\#\\# Environment" in text and "\\*\\*bold" in text and "\\[link\\]\\(" in text
+
+
+KOTLIN_LOG = """2026-03-27 ERROR main Failed. io.airbyte.cdk.ConfigErrorException: Incumbent CDC state is invalid
+        at io.airbyte.cdk.read.cdc.CdcPartitionsCreator.run(CdcPartitionsCreator.kt:85) ~[bulk-cdk-toolkit-extract-cdc-0.1.77.jar:?]
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33) ~[kotlin-stdlib-2.1.10.jar:2.1.10-release-473]
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104) ~[kotlinx-coroutines-core-jvm-1.8.1.jar:?]
+Stack Trace: io.airbyte.cdk.ConfigErrorException: Incumbent CDC state is invalid
+        at io.airbyte.cdk.read.cdc.CdcPartitionsCreator.run(CdcPartitionsCreator.kt:85)
+""" + "\n".join(f"        at io.airbyte.cdk.read.Step{i}.run(Step.kt:{i})" for i in range(10))
+
+
+def test_compact_log_drops_runtime_frames_and_jar_versions():
+    text = compact_log(KOTLIN_LOG)
+    assert "ConfigErrorException" in text and "CdcPartitionsCreator" in text
+    assert "kotlin" not in text and ".jar" not in text
+    assert sum(line.lstrip().startswith("at ") for line in text.splitlines()) == 5  # 프레임은 앞 5개만
+    assert text.count("CdcPartitionsCreator.run") == 1  # 반복된 줄은 한 번만
+    assert extract_signals(KOTLIN_LOG)["versions"] == []  # jar 안의 라이브러리 버전은 제품 버전이 아니다
+
+
+def test_explore_requires_exception_name_when_given(index_dirs):  # noqa: F811
+    retriever = make_retriever(index_dirs)
+    llm = ExploreLLM({"repos": [], "issue_types": [], "versions": [], "categories": [], "symptom": "sync times out"},
+                     matches=[{"issue_id": "airbytehq/airbyte#4", "reason": "타임아웃"},
+                              {"issue_id": "airbytehq/airbyte#5", "reason": "지어낸 일치"}])
+    result = explore_issues(llm, retriever, "SocketTimeoutException 나는 동기화 이슈 찾아줘", REPOS, CATEGORIES)
+    assert result.conditions["error_types"] == ["SocketTimeoutException"]
+    assert [c["issue_id"] for c in result.issues] == ["airbytehq/airbyte#4"]
+    assert result.filtered_out.get("오류 유형", 0) >= 1

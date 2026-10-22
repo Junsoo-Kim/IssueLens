@@ -13,7 +13,14 @@ from typing import Callable
 
 from src.preprocessing.tagger import EXCEPTION_NAME, VERSION_TOKEN
 
-MAX_LOG_CHARS = 3000
+MAX_LOG_CHARS = 2000
+MAX_FRAMES = 5  # 검색에 넣을 애플리케이션 스택 프레임 수
+FRAME = re.compile(r"^\s*at \S")
+# 언어 런타임·프레임워크 프레임은 어느 오류에나 나와 검색어를 흐린다
+RUNTIME_FRAME = re.compile(r"^\s*at (?:java\.|javax\.|jdk\.|sun\.|com\.sun\.|kotlin\.|kotlinx\.|scala\.|io\.netty\.|"
+                           r"io\.vertx\.|io\.quarkus\.|org\.jboss\.|org\.springframework\.|reactor\.|"
+                           r"org\.apache\.catalina\.|org\.apache\.tomcat\.)")
+JAR_SUFFIX = re.compile(r"\s*~?\[[^\]]*\.jar[^\]]*\]")  # "~[kotlin-stdlib-2.1.10.jar:?]" 같은 라이브러리 버전 표기
 SIMILAR_ISSUES = 3
 ERROR_LINE = re.compile(r"\b(ERROR|FATAL|CRITICAL|Exception|Error|Caused by|failed|Failed|FAILED|panic)\b")
 JAVA_FRAME = re.compile(r"^\s*at ((?:[a-z_][\w]*\.){2,})[A-Z]", re.MULTILINE)
@@ -46,30 +53,46 @@ def extract_signals(log: str) -> dict:
     libraries += PYTHON_FRAME.findall(log) + PACKAGE_IN_TEXT.findall(log)
     # 패키지 경로는 앞 두 단계(예: org.keycloak)로 묶는다
     libraries = [".".join(name.split(".")[:2]) if "." in name else name for name in libraries]
+    libraries = [name for name in libraries if not RUNTIME_FRAME.match(f"at {name}.")]
     return {
         "exceptions": _unique(EXCEPTION_NAME.findall(log), 5),
         "error_lines": _unique((line[:200] for line in lines if ERROR_LINE.search(line) and not line.startswith("at ")), 5),
         "libraries": _unique(libraries, 6),
-        "versions": _unique((m.group(0) for m in VERSION_TOKEN.finditer(log)), 6),
+        # 스택 프레임과 jar 표기의 버전은 의존 라이브러리 버전이라 뺀다
+        "versions": _unique((m.group(0) for m in VERSION_TOKEN.finditer(_message_lines(log))), 6),
         "environments": [name for name, pattern in ENVIRONMENTS.items() if pattern.search(log)],
     }
 
 
-def trim_log(log: str, max_chars: int = MAX_LOG_CHARS) -> str:
-    """긴 로그는 앞부분과 오류 줄 위주로 줄인다. 스택 프레임이 반복되면 검색어가 흐려진다."""
-    if len(log) <= max_chars:
-        return log.strip()
-    lines = log.strip().splitlines()
-    head = lines[:20]
+def _message_lines(log: str) -> str:
+    return "\n".join(JAR_SUFFIX.sub("", line) for line in log.splitlines() if not FRAME.match(line))
+
+
+def compact_log(log: str, max_chars: int = MAX_LOG_CHARS) -> str:
+    """검색용으로 로그를 줄인다. 오류·메시지 줄은 남기고, 스택 프레임은 런타임 프레임을 빼고 앞 몇 개만 둔다.
+    그래도 길면 앞부분과 오류 줄 위주로 자른다."""
+    lines, frames = [], 0
+    for line in log.strip().splitlines():
+        line = JAR_SUFFIX.sub("", line).rstrip()
+        if not line.strip() or line in lines:  # "Stack Trace:"처럼 같은 내용이 반복되는 로그
+            continue
+        if FRAME.match(line):
+            if RUNTIME_FRAME.match(line) or frames >= MAX_FRAMES:
+                continue
+            frames += 1
+        lines.append(line)
+    text = "\n".join(lines)
+    if len(text) <= max_chars:
+        return text
     errors = [line for line in lines[20:] if ERROR_LINE.search(line)]
-    return "\n".join(dict.fromkeys([*head, "...", *errors]))[:max_chars]
+    return "\n".join(dict.fromkeys([*lines[:20], "...", *errors]))[:max_chars]
 
 
 def diagnosis_question(log: str, note: str = "") -> str:
     prefix = "다음 오류 로그와 비슷한 종료 이슈를 찾아 원인 후보, 환경 차이, 우선 확인할 재현·검증 절차를 알려줘."
     if note.strip():
         prefix += f"\n상황 설명: {note.strip()[:500]}"
-    return f"{prefix}\n\n{trim_log(log)}"
+    return f"{prefix}\n\n{compact_log(log)}"
 
 
 @dataclass

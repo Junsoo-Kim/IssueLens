@@ -74,6 +74,7 @@ class Conditions:
     issue_types: list[str] = field(default_factory=list)
     versions: list[str] = field(default_factory=list)
     categories: list[str] = field(default_factory=list)
+    error_types: list[str] = field(default_factory=list)  # 질문에 나온 예외명. 규칙으로만 뽑는다
     symptom: str = ""
     source: str = "rule"
     error: str | None = None
@@ -111,6 +112,7 @@ def rule_based_conditions(question: str, repositories: list[dict], error: str | 
         repos=analysis.explicit_repos[:2],
         issue_types=[t for t, pattern in TYPE_WORDS.items() if pattern.search(question)],
         versions=_rule_versions(question),
+        error_types=analyze_query(question, []).error_types,
         symptom=question.strip(),
         error=error,
     )
@@ -138,6 +140,7 @@ def extract_conditions(llm: LLM | None, question: str, repositories: list[dict],
         # 질문에 없는 버전은 버린다 (지어낸 조건으로 결과가 사라지지 않게)
         versions=[v for v in _strings(data.get("versions")) if v.lower().lstrip("v") in question.lower()],
         categories=[c for c in _strings(data.get("categories")) if c in categories],
+        error_types=analyze_query(question, []).error_types,
         symptom=symptom.strip()[:200],
         source="llm",
     )
@@ -158,7 +161,7 @@ def judge_candidates(llm: LLM | None, question: str, conditions: Conditions, can
         return Judgement({}, "rule")
     if llm is None:
         return Judgement(fallback, "rule", "LLM 없음")
-    shown = {k: v for k, v in conditions.as_dict().items() if k in ("repos", "issue_types", "versions", "categories", "symptom")}
+    shown = {k: v for k, v in conditions.as_dict().items() if k in ("repos", "issue_types", "versions", "categories", "error_types", "symptom")}
     try:
         raw = llm(JUDGE_SYSTEM, JUDGE_USER.format(question=question, conditions=shown,
                                                   candidates="\n".join(_candidate_summary(c) for c in candidates)))

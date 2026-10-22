@@ -100,6 +100,7 @@ def explore_tab(assistant: Assistant, choice: SidebarChoice, root) -> None:
     st.markdown("**추출된 조건**")
     key_values({"저장소": conditions["repos"] or "제한 없음", "유형": conditions["issue_types"] or "제한 없음",
                 "버전": conditions["versions"] or "제한 없음", "범주": conditions["categories"] or "제한 없음",
+                "오류 유형": conditions.get("error_types") or "제한 없음",
                 "증상 검색어": conditions["symptom"]})
     filtered = ", ".join(f"{k} {v}건" for k, v in result["filtered_out"].items()) or "없음"
     st.caption(f"검색 후보 {result['searched']}건 → 메타데이터 조건 불일치 제외: {filtered} → "

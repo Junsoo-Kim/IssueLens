@@ -41,6 +41,10 @@ def filter_reasons(conditions: Conditions, metadata: dict, text: str) -> list[st
         failed.append("유형")
     if conditions.versions and not any(version_matches(v, metadata, text) for v in conditions.versions):
         failed.append("버전")
+    if conditions.error_types:  # 예외명을 지정했으면 메타데이터나 본문 요약에 그 이름이 있어야 한다
+        haystack = f"{metadata.get('error_types_csv') or ''} {metadata.get('title') or ''} {text}".lower()
+        if not any(name.lower() in haystack for name in conditions.error_types):
+            failed.append("오류 유형")
     if conditions.categories:
         categories = {metadata.get("category"), *_csv(metadata.get("categories_csv"))}
         if not categories & set(conditions.categories):
