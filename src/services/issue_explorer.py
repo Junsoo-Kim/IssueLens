@@ -82,7 +82,9 @@ def issue_card(metadata: dict, reason: str) -> dict:
 
 
 def explore_issues(llm: LLM | None, retriever: HybridRetriever, question: str, repositories: list[dict],
-                   categories: dict[str, str], repo: str | None = None, max_results: int = MAX_RESULTS) -> ExploreResult:
+                   categories: dict[str, str], repo: str | None = None, max_results: int = MAX_RESULTS,
+                   judge_llm: LLM | None = None) -> ExploreResult:
+    """llm은 조건 추출, judge_llm(없으면 llm)은 후보 판정에 쓴다."""
     conditions = extract_conditions(llm, question, repositories, categories)
     if repo:  # 화면에서 고른 저장소가 우선한다
         conditions.repos = [repo]
@@ -96,7 +98,7 @@ def explore_issues(llm: LLM | None, retriever: HybridRetriever, question: str, r
         if not failed:
             passed.append(candidate)
 
-    judgement = judge_candidates(llm, question, conditions, passed[:JUDGE_CANDIDATES])
+    judgement = judge_candidates(judge_llm or llm, question, conditions, passed[:JUDGE_CANDIDATES])
     by_id = {c["metadata"]["issue_id"]: c["metadata"] for c in passed}
     issues = [issue_card(by_id[i], reason) for i, reason in judgement.matches.items()][:max_results]
     rejected = [{"issue_id": c["metadata"]["issue_id"], "title": c["metadata"].get("title"),

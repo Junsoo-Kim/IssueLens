@@ -45,9 +45,13 @@ class PipelineSettings:
 
 class RAGPipeline:
     def __init__(self, retriever: HybridRetriever, llm: LLM | None, repositories: list[dict],
-                 collector: QueryTimeCollector | None = None, settings: PipelineSettings | None = None):
+                 collector: QueryTimeCollector | None = None, settings: PipelineSettings | None = None,
+                 fast_llm: LLM | None = None):
+        """fast_llm: 검색어 추출·후보 선별처럼 형식이 정해진 짧은 판단에 쓰는 LLM (추론량을 낮춰 지연을 줄인다).
+        근거 판정과 답변 생성은 llm을 쓴다."""
         self.retriever = retriever
         self.llm = llm
+        self.fast_llm = fast_llm or llm
         self.repositories = repositories
         self.collector = collector
         self.settings = settings or PipelineSettings()
@@ -82,7 +86,7 @@ class RAGPipeline:
         selected = self._selected_issue(selected_id)
 
         report(config, "검색 조건 분석 중")
-        plan = extract_queries(self.llm, question, self.repositories, selected)
+        plan = extract_queries(self.fast_llm, question, self.repositories, selected)
         timings = {"query_plan": time.perf_counter() - started}
         english = " ".join([*plan.search_queries, *plan.exact_tokens])
         plan_repo = repo or (plan.candidate_repos[0] if len(plan.candidate_repos) == 1 else None)
@@ -101,7 +105,7 @@ class RAGPipeline:
                 report(config, "캐시 확인 및 외부 이슈 수집 중")
                 queries = collection_queries(plan.search_queries, plan.exact_tokens, self.settings.collection_queries,
                                              question)
-                collection_result = self.collector.collect(question, queries, repos, self.llm)
+                collection_result = self.collector.collect(question, queries, repos, self.fast_llm)
                 collection = collection_result.as_dict()
                 if not collection_result.available:
                     timings["attempt_collect"] = time.perf_counter() - stage_started

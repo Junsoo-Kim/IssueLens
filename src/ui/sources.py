@@ -71,7 +71,8 @@ def render_process(state: dict) -> None:
             st.markdown("**질문 시점 외부 수집**")
             key_values({
                 "캐시 적중": [h["query"] for h in collection.get("cache_hits", [])],
-                "GitHub 검색": [f"{s['query']} ({s['results']}건)" for s in collection.get("searched", [])],
+                "GitHub 검색": [f"{s['repo'].split('/')[-1]}: {s['query']} ({s['results']}건)"
+                               for s in collection.get("searched", [])],
                 "후보 수": len(collection.get("candidates", [])),
                 "선택": selection.get("selected_ids") or [],
                 "새로 색인한 이슈": collection.get("collected") or [],

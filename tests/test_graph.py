@@ -276,3 +276,13 @@ def test_run_checks_summarizes_questions_and_evaluation_logs(rag_root, index_dir
     assert "== 합계 3건" in printed
     assert "TokenVerificationException: invalid token" not in printed  # 요약에는 원문을 넣지 않는다
     assert out.read_text(encoding="utf-8").startswith("# IssueLens 일괄 점검")
+
+
+def test_fast_llm_handles_query_plan_while_main_llm_grades_and_answers(rag_root):
+    main_llm, fast_llm = FakeLLM(), FakeLLM()
+    assistant = make_assistant(rag_root, main_llm)
+    assistant.pipeline.fast_llm = fast_llm
+    state = assistant.ask("TokenVerificationException after upgrade")
+    assert state["answered_from_evidence"]
+    assert fast_llm.calls == ["plan"] and "plan" not in main_llm.calls
+    assert main_llm.calls[:2] == ["grade", "answer"]

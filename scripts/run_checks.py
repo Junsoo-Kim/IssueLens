@@ -54,7 +54,8 @@ def summarize(kind: str, label: str, state: dict, seconds: float, original: str 
                      f"{'충분' if grade['sufficient'] else '부족'} | {short(grade['reason'])}")
     collection = state.get("collection")
     if collection:
-        searched = [f"{s['query'][:40]}({s['results']})" for s in collection.get("searched", [])]
+        searched = [f"{s['repo'].split('/')[-1]}:{s['query'][:40]}({s['results']})"
+                    for s in collection.get("searched", [])]
         hits = [h["query"][:40] for h in collection.get("cache_hits", [])]
         selection = collection.get("selection") or {}
         lines.append(f"  - 수집: 검색 {searched or '-'} 캐시 {hits or '-'} / 후보 {len(collection.get('candidates', []))} "

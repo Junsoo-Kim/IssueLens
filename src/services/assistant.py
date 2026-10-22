@@ -87,6 +87,9 @@ def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubCl
     if llm is None and os.getenv("OPENAI_API_KEY"):
         llm_config = app_config.get("llm", {})
         llm = OpenAIChat(llm_config.get("model", "gpt-5-mini"), llm_config.get("reasoning_effort"))
+        fast_llm = OpenAIChat(llm_config.get("model", "gpt-5-mini"), llm_config.get("fast_reasoning_effort"))
+    else:
+        fast_llm = llm
 
     collection_config = app_config.get("query_time_collection", {})
     if enable_collection is None:
@@ -124,5 +127,5 @@ def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubCl
     settings = PipelineSettings(max_attempts=rag.get("max_attempts", 3), evidence_chars=rag.get("evidence_chars", 1200),
                                 citation_retries=rag.get("citation_retries", 1),
                                 collection_queries=collection_config.get("max_queries", 3))
-    pipeline = RAGPipeline(retriever, llm, repositories, collector, settings)
+    pipeline = RAGPipeline(retriever, llm, repositories, collector, settings, fast_llm)
     return Assistant(pipeline, build_graph(pipeline), retriever, app_config)

@@ -89,8 +89,8 @@ def explore_tab(assistant: Assistant, choice: SidebarChoice, root) -> None:
     if submitted and question.strip():
         categories = load_yaml(root / "configs/repositories.yaml").get("categories", {})
         result = _run("조건 분석 및 이슈 검색 중", lambda progress: explore_issues(
-            assistant.pipeline.llm, assistant.retriever, question, assistant.pipeline.repositories, categories,
-            repo=choice.repo))
+            assistant.pipeline.fast_llm, assistant.retriever, question, assistant.pipeline.repositories, categories,
+            repo=choice.repo, judge_llm=assistant.pipeline.llm))
         st.session_state["explore_result"] = result.as_dict() if result else None
 
     result = st.session_state.get("explore_result")
