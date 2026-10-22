@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from typing import Callable
 
 LLM = Callable[[str, str], str]
@@ -20,20 +21,35 @@ class LLMUnavailable(RuntimeError):
 class OpenAIChat:
     """처음 호출할 때 클라이언트를 만든다. GPT-5 계열은 temperature 기본값만 지원해 지정하지 않는다."""
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, reasoning_effort: str | None = None):
         self.model = model
+        self.reasoning_effort = reasoning_effort
         self._client = None
+
+    def _build(self):
+        from langchain_openai import ChatOpenAI
+        extra = {"reasoning_effort": self.reasoning_effort} if self.reasoning_effort else {}
+        return ChatOpenAI(model=self.model, base_url=os.getenv("OPENAI_BASE_URL") or None, **extra)
 
     def __call__(self, system: str, user: str) -> str:
         if self._client is None:
             if not os.getenv("OPENAI_API_KEY"):
                 raise LLMUnavailable("OPENAI_API_KEY가 설정되지 않았습니다.")
-            from langchain_openai import ChatOpenAI
-            self._client = ChatOpenAI(model=self.model, base_url=os.getenv("OPENAI_BASE_URL") or None)
+            self._client = self._build()
+        messages = [("system", system), ("human", user)]
         try:
-            response = self._client.invoke([("system", system), ("human", user)])
+            response = self._client.invoke(messages)
         except Exception as exc:  # 네트워크·인증·한도 오류를 한 가지 예외로 바꿔 상위에서 안내한다
-            raise LLMUnavailable(f"LLM 호출 실패: {type(exc).__name__}") from exc
+            if not (self.reasoning_effort and "reasoning_effort" in str(exc)):
+                raise LLMUnavailable(f"LLM 호출 실패: {type(exc).__name__}") from exc
+            # 주소가 reasoning_effort를 거부하면 빼고 다시 호출한다
+            print(f"주의: reasoning_effort={self.reasoning_effort}를 지원하지 않아 기본값으로 호출합니다.", file=sys.stderr)
+            self.reasoning_effort = None
+            self._client = self._build()
+            try:
+                response = self._client.invoke(messages)
+            except Exception as retry_exc:
+                raise LLMUnavailable(f"LLM 호출 실패: {type(retry_exc).__name__}") from retry_exc
         return response.content if isinstance(response.content, str) else str(response.content)
 
 

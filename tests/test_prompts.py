@@ -150,3 +150,36 @@ def test_check_and_remove_citations():
     assert (check.cited, check.invalid, check.valid) == ([1, 3], [9], False)
     assert "[근거 9]" not in remove_citations(answer, [9]) and "[근거 3]" in remove_citations(answer, [9])
     assert not check_citations(NO_EVIDENCE_MESSAGE, {1}).has_citations
+
+
+def test_collection_queries_put_exact_tokens_first():
+    from src.collectors.query_time import collection_queries
+
+    queries = ["TokenVerificationException on login after upgrade", "Login fails after upgrade"]
+    assert collection_queries(queries, ["TokenVerificationException", "26.0.1"]) == [
+        '"TokenVerificationException"', *queries]  # 버전 번호만으로는 검색하지 않는다
+    assert collection_queries(queries, [], limit=1) == queries[:1]
+    assert collection_queries(queries, ["26.0.1"]) == queries
+
+
+def test_openai_chat_retries_without_unsupported_reasoning_effort(monkeypatch):
+    from src.prompts.llm import OpenAIChat
+
+    class FakeClient:
+        def __init__(self, effort):
+            self.effort = effort
+
+        def invoke(self, messages):
+            if self.effort:
+                raise ValueError("Unsupported parameter: 'reasoning_effort'")
+            return type("Response", (), {"content": "ok"})()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    chat = OpenAIChat("gpt-5-mini", "low")
+    monkeypatch.setattr(chat, "_build", lambda: FakeClient(chat.reasoning_effort))
+    assert chat("s", "u") == "ok" and chat.reasoning_effort is None
+
+    failing = OpenAIChat("gpt-5-mini")
+    monkeypatch.setattr(failing, "_build", lambda: FakeClient("always"))
+    with pytest.raises(LLMUnavailable):
+        failing("s", "u")

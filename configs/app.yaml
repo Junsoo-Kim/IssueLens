@@ -6,6 +6,8 @@ app:
 llm:
   model: gpt-5-mini         # 답변 생성 모델, API 주소는 .env의 OPENAI_BASE_URL
                             # GPT-5 계열은 temperature 기본값(1)만 지원하므로 지정하지 않는다
+  reasoning_effort: low     # 추론 모델의 생각 양 (minimal/low/medium/high). 기본값(medium)은 질문당 1분 넘게 걸린다
+                            # 주소가 이 값을 받지 않으면 한 번 경고하고 빼고 다시 호출한다
 
 http:                       # 기획서 5.7절, request_interval_seconds는 내부 초기값
   connect_timeout_seconds: 5

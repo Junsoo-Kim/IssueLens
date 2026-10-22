@@ -12,7 +12,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from src.collectors.query_time import QueryTimeCollector
+from src.collectors.query_time import QueryTimeCollector, collection_queries
 from src.graph.state import RAGState
 from src.indexing.ids import issue_record_id
 from src.prompts.answer_generator import NO_EVIDENCE_MESSAGE, generate_answer, generate_general_answer
@@ -31,6 +31,7 @@ class PipelineSettings:
     max_attempts: int = 3
     evidence_chars: int = 1200
     citation_retries: int = 1
+    collection_queries: int = 3
 
 
 class RAGPipeline:
@@ -85,7 +86,8 @@ class RAGPipeline:
             elif self.collector is not None:
                 # 앞 시도의 라우팅 결과를 수집 대상 저장소로 쓴다
                 repos = ([repo] if repo else plan.candidate_repos or attempts[-1]["route"]["repos"])[:2]
-                collection_result = self.collector.collect(question, plan.search_queries, repos, self.llm)
+                queries = collection_queries(plan.search_queries, plan.exact_tokens, self.settings.collection_queries)
+                collection_result = self.collector.collect(question, queries, repos, self.llm)
                 collection = collection_result.as_dict()
                 if not collection_result.available:
                     timings["attempt_collect"] = time.perf_counter() - stage_started
@@ -100,7 +102,8 @@ class RAGPipeline:
                 break
 
         final = next((a for a in reversed(attempts) if a["grade"]["sufficient"]), None)
-        best = final or max(attempts, key=lambda a: (a["evidence_count"], -attempts.index(a)), default=None)
+        # 근거 수가 같으면 뒤 시도를 고른다. 외부 수집 후 시도는 새로 수집한 이슈를 앞에 두므로 가까운 사례로 더 알맞다
+        best = final or max(attempts, key=lambda a: (a["evidence_count"], attempts.index(a)), default=None)
         result: RetrievalResult | None = best["_result"] if best else None
         nearest = [{"issue_id": issue_id_of_record(h.id), "url": f"https://github.com/{issue_id_of_record(h.id).replace('#', '/issues/')}"}
                    for h in (result.issues[:NEAREST_ISSUES] if result else [])]

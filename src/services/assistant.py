@@ -78,7 +78,8 @@ def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubCl
     embed_query = getattr(embedder, "embed_query", None) or (lambda text: embedder([text])[0])
     retriever = HybridRetriever(paths["chroma_dir"], paths["sparse_index_dir"], retrieval_config, repositories, embed_query)
     if llm is None and os.getenv("OPENAI_API_KEY"):
-        llm = OpenAIChat(app_config.get("llm", {}).get("model", "gpt-5-mini"))
+        llm_config = app_config.get("llm", {})
+        llm = OpenAIChat(llm_config.get("model", "gpt-5-mini"), llm_config.get("reasoning_effort"))
 
     collection_config = app_config.get("query_time_collection", {})
     if enable_collection is None:
@@ -114,6 +115,7 @@ def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubCl
 
     rag = app_config.get("rag", {})
     settings = PipelineSettings(max_attempts=rag.get("max_attempts", 3), evidence_chars=rag.get("evidence_chars", 1200),
-                                citation_retries=rag.get("citation_retries", 1))
+                                citation_retries=rag.get("citation_retries", 1),
+                                collection_queries=collection_config.get("max_queries", 3))
     pipeline = RAGPipeline(retriever, llm, repositories, collector, settings)
     return Assistant(pipeline, build_graph(pipeline), retriever, app_config)

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -31,6 +32,18 @@ QUERY_CACHE = "query_cache.json"
 COLLECTION_LOG = "query_collection_log.jsonl"
 
 IndexDocuments = Callable[[list[dict]], int]
+
+
+VERSION_ONLY = re.compile(r"v?\d+(?:\.\d+)+")
+
+
+def collection_queries(search_queries: list[str], exact_tokens: list[str], limit: int = 3) -> list[str]:
+    """GitHub 검색은 모든 단어가 들어간 이슈만 돌려줘 긴 문장 검색어는 0건이 되기 쉽다.
+    정확 토큰(예외명, 오류 코드)만으로 된 검색어를 맨 앞에 둔다. 매번 같은 검색어라 캐시도 적중한다.
+    버전 번호만으로는 엉뚱한 이슈가 걸리므로 뺀다."""
+    tokens = [t for t in exact_tokens if not VERSION_ONLY.fullmatch(t)]
+    head = [" ".join(f'"{t}"' for t in tokens)] if tokens else []
+    return list(dict.fromkeys([*head, *search_queries]))[:limit]
 
 
 def query_key(repo: str, query: str) -> str:
