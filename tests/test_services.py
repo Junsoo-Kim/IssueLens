@@ -126,3 +126,26 @@ def test_diagnose_without_evidence_marks_similar_as_reference(rag_root):  # noqa
     result = diagnose(assistant, "ERROR NullPointerException in scheduler on Windows")
     assert not result.state["answered_from_evidence"]
     assert result.similar_issues and not any(i["used_as_evidence"] for i in result.similar_issues)
+
+
+def test_sample_logs_finds_stack_trace_blocks():
+    from scripts.sample_logs import log_blocks
+
+    body = f"Steps\n```\nshort\n```\n\n```text\n{JAVA_LOG}```\n```yaml\nkey: value\nother: 1\nmore: 2\n```"
+    blocks = log_blocks(body)
+    assert len(blocks) == 1 and blocks[0].startswith("2026-01-02 10:00:00 ERROR")
+
+
+def test_explore_reports_rejected_candidates(index_dirs):  # noqa: F811
+    retriever = make_retriever(index_dirs)
+    llm = ExploreLLM({"repos": [KC], "issue_types": ["bug"], "versions": [], "categories": [], "symptom": "login"},
+                     matches=[])
+    result = explore_issues(llm, retriever, "keycloak 로그인 버그", REPOS, CATEGORIES)
+    assert not result.issues and result.rejected and all(r["issue_id"].startswith(KC) for r in result.rejected)
+
+
+def test_snippet_escapes_markdown():
+    from src.ui.sources import snippet
+
+    text = snippet("header\n\n## Environment - **bold** [link](http://x) `code`")
+    assert "\\#\\# Environment" in text and "\\*\\*bold" in text and "\\[link\\]\\(" in text

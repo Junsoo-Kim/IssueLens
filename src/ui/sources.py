@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+import re
+
 import streamlit as st
 
 from src.prompts.answer_generator import NO_EVIDENCE_MESSAGE, SOURCE_TYPE_LABELS
@@ -16,9 +18,14 @@ BADGE_COLORS = {"issue_metadata": "gray", "issue_body": "blue", "comment": "gree
 STAGE_LABELS = {"original": "원래 질문", "rewritten": "재작성 검색어", "collected": "외부 수집 후"}
 
 
+MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-!|>~<])")
+
+
 def snippet(text: str, limit: int = SNIPPET_CHARS) -> str:
+    """원문 일부. 이슈 본문의 마크다운(제목, 링크, 코드)이 화면에서 그대로 렌더링되지 않게 기호를 이스케이프한다."""
     body = " ".join(chunk_body(text).split())
-    return body[:limit] + ("…" if len(body) > limit else "")
+    body = body[:limit] + ("…" if len(body) > limit else "")
+    return MARKDOWN_SPECIAL.sub(r"\\\1", body)
 
 
 def key_values(rows: dict) -> None:

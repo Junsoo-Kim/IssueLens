@@ -67,7 +67,7 @@ def chat_tab(assistant: Assistant, choice: SidebarChoice) -> None:
     question = st.chat_input("장애 증상, 오류 메시지, 궁금한 점을 입력하세요")
     if not question:
         return
-    messages.append({"role": "user", "content": question})
+    # 처리 중에 이슈를 바꾸면 Streamlit이 실행을 멈추고 다시 그린다. 질문은 답과 함께 저장해 답 없는 질문이 남지 않게 한다
     with history, st.chat_message("user"):
         st.markdown(question)
     with history, st.chat_message("assistant"):
@@ -75,10 +75,10 @@ def chat_tab(assistant: Assistant, choice: SidebarChoice) -> None:
             question, selected_issue_id=choice.issue_id, repo=None if choice.issue_id else choice.repo,
             allow_general_answer=choice.allow_general, progress=progress))
         if state is None:
-            messages.append({"role": "assistant", "content": INTERNAL_ERROR})
+            messages.extend([{"role": "user", "content": question}, {"role": "assistant", "content": INTERNAL_ERROR}])
             return
         render_answer(state, safety)
-    messages.append({"role": "assistant", "state": state})
+    messages.extend([{"role": "user", "content": question}, {"role": "assistant", "state": state}])
 
 
 def explore_tab(assistant: Assistant, choice: SidebarChoice, root) -> None:
@@ -108,6 +108,11 @@ def explore_tab(assistant: Assistant, choice: SidebarChoice, root) -> None:
         st.warning(warning)
     if not result["issues"]:
         st.info("조건에 맞는 이슈를 찾지 못했습니다. 조건을 줄이거나 다른 표현으로 입력해 주세요.")
+    if result.get("rejected"):
+        with st.expander(f"조건 판정에서 제외된 후보 {len(result['rejected'])}건"):
+            st.caption("메타데이터 조건은 맞지만 LLM이 요청한 증상과 다르다고 판정한 이슈입니다.")
+            for item in result["rejected"]:
+                st.markdown(f"- [{item['issue_id']}]({item['url']}) {item['title']}")
     for card in result["issues"]:
         with st.container(border=True):
             st.markdown(f"**[{card['issue_id']}]({card['url']})** {card['title']}")

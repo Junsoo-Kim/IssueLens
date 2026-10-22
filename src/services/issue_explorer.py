@@ -55,6 +55,7 @@ class ExploreResult:
     filtered_out: dict[str, int]  # 조건별로 걸러진 후보 수
     judged: dict | None
     issues: list[dict] = field(default_factory=list)
+    rejected: list[dict] = field(default_factory=list)  # 메타데이터는 맞지만 판정에서 빠진 후보 (화면 확인용)
     warnings: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
@@ -97,8 +98,12 @@ def explore_issues(llm: LLM | None, retriever: HybridRetriever, question: str, r
     judgement = judge_candidates(llm, question, conditions, passed[:JUDGE_CANDIDATES])
     by_id = {c["metadata"]["issue_id"]: c["metadata"] for c in passed}
     issues = [issue_card(by_id[i], reason) for i, reason in judgement.matches.items()][:max_results]
+    rejected = [{"issue_id": c["metadata"]["issue_id"], "title": c["metadata"].get("title"),
+                 "url": c["metadata"].get("source_url")}
+                for c in passed[:JUDGE_CANDIDATES] if c["metadata"]["issue_id"] not in judgement.matches]
     if conditions.error:
         warnings.append(f"조건 추출을 규칙 기반으로 대체했습니다 ({conditions.error}).")
     if judgement.error and passed:
         warnings.append(f"LLM 판정 없이 메타데이터 조건만 적용했습니다 ({judgement.error}).")
-    return ExploreResult(conditions.as_dict(), len(candidates), filtered_out, judgement.as_dict(), issues, warnings)
+    return ExploreResult(conditions.as_dict(), len(candidates), filtered_out, judgement.as_dict(), issues, rejected,
+                         warnings)
