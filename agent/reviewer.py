@@ -12,7 +12,7 @@ from typing import Callable
 
 from agent.diff_reader import DiffBundle, FileChange
 from agent.registry import Resolution
-from agent.signals import Signals
+from agent.signals import CONFIG_FILE, DEPENDENCY_FILES, PYTHON_MARKERS, Signals
 from src.prompts.llm import LLM, LLMUnavailable, parse_json_object
 
 PROMPT_VERSION = "reviewer/1"
@@ -98,10 +98,17 @@ class Review:
         return {**asdict(self), "findings": [f.as_dict() for f in self.findings]}
 
 
+def reviewable(change: FileChange) -> bool:
+    """리뷰 대상: .py 파일, 의존성 파일, 설정 파일 (기획서 17.4절). 문서·스크립트·다른 언어 파일은 LLM에 넘기지 않는다."""
+    path = change.path
+    return (path.endswith((".py", ".pyi")) or path.rsplit("/", 1)[-1] in PYTHON_MARKERS
+            or bool(DEPENDENCY_FILES.search(path)) or bool(CONFIG_FILE.search(path)))
+
+
 def format_patch(bundle: DiffBundle, max_chars: int = MAX_PATCH_CHARS) -> str:
     """파일별 hunk를 새 파일 줄 번호와 함께 쓴다. 삭제 줄은 번호 없이 '-'로 표시한다."""
     blocks, total = [], 0
-    for change in bundle.reviewed:
+    for change in filter(reviewable, bundle.reviewed):
         lines = [f"### {change.path} ({change.status})"]
         for hunk in change.hunks:
             lines.append(hunk.header)
@@ -158,7 +165,7 @@ def _cap(findings: list[Finding], max_rag: int, max_general: int) -> list[Findin
 
 
 def parse_findings(data: dict, bundle: DiffBundle, resolve: Resolve) -> list[Finding]:
-    changes = {c.path: c for c in bundle.reviewed}
+    changes = {c.path: c for c in bundle.reviewed if reviewable(c)}
     findings = []
     for raw in data.get("findings") or []:
         if not isinstance(raw, dict) or raw.get("file") not in changes or not str(raw.get("summary") or "").strip():
@@ -203,6 +210,8 @@ def rule_findings(signals: Signals, resolve: Resolve) -> list[Finding]:
 
 def review(llm: LLM | None, bundle: DiffBundle, signals: Signals, signals_text: str, resolve: Resolve,
            max_rag: int = 5, max_general: int = 5) -> Review:
+    if not any(reviewable(c) for c in bundle.reviewed):
+        return Review([], "rule", "리뷰 대상 파일(.py, 의존성, 설정) 없음")
     fallback = rule_findings(signals, resolve)
     if llm is None:
         return Review(_cap(fallback, max_rag, max_general), "rule", "LLM 없음")

@@ -47,8 +47,11 @@ def test_logic_only_gives_general_review_without_rag(tmp_path):
 
 
 def test_docs_only_and_non_python_make_no_comment(tmp_path):
-    docs, _ = run("docs_only", tmp_path)
-    assert docs.status == "PASS" and not docs.observed["comment"]
+    class Eager:  # 문서에도 지적을 만드는 LLM (실제 실행에서 README에 지적 4건이 나왔다)
+        def __call__(self, system, user):
+            return json.dumps({"findings": [{"file": "README.md", "line": 5, "kind": "general", "summary": "문서 지적"}]})
+    docs, recorder = run("docs_only", tmp_path, llm=Eager())
+    assert docs.status == "PASS" and not docs.observed["comment"] and recorder.prompts == []  # LLM을 부르지 않는다
     non_python, recorder = run("non_python", tmp_path)
     assert non_python.status == "PASS" and not non_python.observed["reviewed"] and recorder.prompts == []
 

@@ -71,6 +71,14 @@ def main(argv: list[str] | None = None, llm=None, fast_llm=None, embedder=None, 
               f"코멘트 {'있음' if o['comment'] else '없음'}", flush=True)
         for line in result.problems + result.warnings:
             print(f"    - {line}", flush=True)
+        # 근거 검색 결과는 판정 사유까지 화면에만 보인다 (사유에 근거 요약이 섞일 수 있어 보고서에는 넣지 않는다)
+        findings = {f["id"]: f for f in (output.get("review") or {}).get("findings", [])}
+        for research in output.get("research") or []:
+            f = findings.get(research["finding_id"], {})
+            stages = "->".join(a["stage"] for a in research.get("attempts", []))
+            print(f"    {research['finding_id']} {f.get('kind')} {f.get('library')} [{', '.join(f.get('exact_tokens', []))}] "
+                  f"{research['status']} ({stages or '-'}, 검색 {research.get('searches', 0)}회): {research.get('reason') or '-'}",
+                  flush=True)
 
     counts = {s: sum(r.status == s for r in results) for s in ("PASS", "WARN", "FAIL", "ERROR")}
     print("\n== " + ", ".join(f"{k} {v}" for k, v in counts.items()))
