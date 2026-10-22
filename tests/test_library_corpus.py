@@ -250,3 +250,36 @@ def test_diagnose_script_rejudges_from_raw_without_network(make_client, tmp_path
     assert "kind: fix 1, usage 1, None 1" in out and "level: " in out
     assert LONG.split()[0] not in out  # 원문은 출력하지 않는다
     assert main(["--repo", "nobody/nothing", "--index", str(tmp_path / "agent_index")]) == 1
+
+
+def test_maintainer_answer_accepts_long_or_linked_explanations_only():
+    from agent.library_corpus import candidate_order, maintainer_answer
+
+    def comment(body, association="COLLABORATOR", login="maint"):
+        return {"body": body, "author_association": association, "user": {"login": login}}
+    explanation = "This is expected: the provider rejects tool messages without a matching call id. " * 3
+    assert maintainer_answer([comment(explanation)], "reporter", set())
+    assert maintainer_answer([comment("See https://python.langchain.com/docs/x")], "reporter", set())
+    assert not maintainer_answer([comment("Closing, thanks!")], "reporter", set())  # 짧은 종료 안내
+    assert not maintainer_answer([comment(explanation, "NONE", "someone")], "reporter", set())
+    assert maintainer_answer([comment(explanation, "NONE", "closer")], "reporter", {"closer"})
+    assert not maintainer_answer([comment(explanation, login="reporter")], "reporter", set())  # 작성자 본인
+
+    tag = {"issue_type": "bug"}
+    assert resolution_kind({"state_reason": "not_planned"}, tag, {"evidence_level": "weak", "maintainer_answer": True}) == "usage"
+    assert resolution_kind({"state_reason": "completed"}, tag, {"evidence_level": "weak", "maintainer_answer": True}) == "fix"
+
+    bot_closed = {"comments": 1, "state_reason": "not_planned", "closed_at": "2026-10-20"}
+    discussed = {"comments": 4, "state_reason": "not_planned", "closed_at": "2026-09-01"}
+    assert sorted([bot_closed, discussed], key=candidate_order, reverse=True)[0] is discussed
+
+
+def test_bot_closed_issue_reports_its_own_reason(make_client, tmp_path):
+    bot = {"login": "triage[bot]", "type": "Bot"}
+    data = {**issue(5), "closed_by": bot}
+    client, _ = make_client({"/search/issues": [FakeResponse(json_data={"items": [issue(5)]})],
+                             **detail_routes(5, [{"id": 1, "body": "Closing automatically", "user": bot}], data=data)},
+                            cache=False)
+    report = LibraryCorpusBuilder(client, LibraryIndex(tmp_path, RETRIEVAL), TAGGING).build(
+        Library(REPO, "llm_sdk", ["openai"], discussions=False), 5, {})
+    assert report.rejected == {"no_resolution:bot_closed": 1}

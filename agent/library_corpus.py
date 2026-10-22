@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ from typing import Callable
 
 from agent.registry import Corpus, Library, Resolution
 from src.collectors.cache import RawStore, utc_now, write_json_atomic
+from src.collectors.comment_collector import CODE_BLOCK, MAINTAINER_ASSOCIATIONS as COMMENT_MAINTAINERS
 from src.collectors.github_client import GitHubAPIError, GitHubClient
 from src.collectors.issue_collector import NotAnIssueError, to_shallow_record
 from src.collectors.runner import collect_issue_detail
@@ -32,7 +34,7 @@ from src.preprocessing.build import build_issue_documents, load_raw
 from src.preprocessing.document_builder import LICENSE_NOTE
 from src.preprocessing.metadata_builder import build_issue_item, content_hash
 from src.preprocessing.normalizer import normalize_markdown
-from src.preprocessing.resolution import infer_maintainers, judge_evidence
+from src.preprocessing.resolution import infer_maintainers, is_automated_notice, is_bot, is_bot_user, judge_evidence
 from src.preprocessing.secret_redactor import redact
 from src.preprocessing.tagger import EXCEPTION_NAME, VERSION_TOKEN, TaggingRules, normalize_label, tag_issue
 
@@ -43,6 +45,10 @@ USAGE_LABELS = {"question", "invalid", "works as intended", "working as intended
                 "wontfix", "won't fix", "usage", "support", "user error", "configuration", "expected behavior"}
 EXCLUDED_TYPES = {"feature", "task", "test"}
 MIN_BODY_CHARS = 100
+# 유지보수자 답변으로 인정하는 댓글: 이 길이 이상이거나 코드 블록·링크가 있음.
+# 챗봇 판정(judge_evidence)의 단어 신호만으로는 사용법을 길게 설명한 답이 빠진다 (langchain 진단 결과)
+MIN_ANSWER_CHARS = 200
+LINK = re.compile(r"https?://")
 DETAIL_ATTEMPTS = 2  # 목표 건수의 몇 배까지 상세 수집을 시도할지 (판정에서 빠지는 이슈 대비)
 DISCUSSION_QUERY = """
 query($owner: String!, $name: String!, $first: Int!, $after: String) {
@@ -101,16 +107,38 @@ def prefilter(tag: dict, shallow: dict) -> str | None:
     return None
 
 
+def maintainer_answer(comments: list[dict], issue_author: str | None, maintainers: set[str]) -> bool:
+    """유지보수자가 원인이나 사용법을 설명한 댓글이 있는지. 짧은 종료 안내는 제외한다."""
+    for comment in comments:
+        login = (comment.get("user") or {}).get("login")
+        if is_bot(comment) or is_automated_notice(comment) or login == issue_author:
+            continue
+        if comment.get("author_association") not in COMMENT_MAINTAINERS and login not in maintainers:
+            continue
+        body = (comment.get("body") or "").strip()
+        if len(body) >= MIN_ANSWER_CHARS or CODE_BLOCK.search(body) or LINK.search(body):
+            return True
+    return False
+
+
 def resolution_kind(shallow: dict, tag: dict, evidence: dict) -> str | None:
-    """fix, usage 중 하나. 해결 근거가 없으면 None."""
+    """fix, usage 중 하나. 해결 근거가 없으면 None. evidence: judge_evidence 결과 + maintainer_answer."""
     labels = {normalize_label(label) for label in shallow.get("labels") or []}
+    explained = bool(evidence.get("maintainer_detail") or evidence.get("maintainer_answer"))
     usage_like = (tag["issue_type"] in {"question", "invalid"} or bool(labels & USAGE_LABELS)
                   or shallow.get("state_reason") == "not_planned")
     if usage_like:
-        return "usage" if evidence.get("maintainer_detail") else None
-    if shallow.get("state_reason") == "completed" and evidence.get("evidence_level") in {"strong", "medium"}:
+        return "usage" if explained else None
+    if shallow.get("state_reason") == "completed" and (evidence.get("evidence_level") in {"strong", "medium"} or explained):
         return "fix"
     return None
+
+
+def candidate_order(record: dict) -> tuple:
+    """상세 수집 순서. 댓글이 오간 이슈를 먼저 본다.
+
+    최근 종료 순만 쓰면 봇이 일괄 종료한 이슈(댓글 1개)가 앞에 몰려 예산을 다 쓴다 (langchain 진단 결과)."""
+    return ((record.get("comments") or 0) >= 2, record.get("state_reason") == "completed", record.get("closed_at") or "")
 
 
 # ---------------------------------------------------------------- Discussions
@@ -298,7 +326,7 @@ class LibraryCorpusBuilder:
             else:
                 candidates.append((record, tag))
         report.prefiltered = len(candidates)
-        candidates.sort(key=lambda c: (c[0].get("closed_at") or ""), reverse=True)
+        candidates.sort(key=lambda c: candidate_order(c[0]), reverse=True)
 
         items, documents, indexed, held_out, accepted = [], [], [], [], 0
         closed_issues: list[dict] = []  # 유지보수자 추정용 (이슈를 여러 번 닫은 계정)
@@ -319,11 +347,14 @@ class LibraryCorpusBuilder:
             comments = load_raw(self.raw, repo, "comments", record["number"]) or []
             closed_issues.append(issue)
             maintainers = infer_maintainers(closed_issues)
-            evidence = judge_evidence(summary, comments, (issue.get("user") or {}).get("login"), maintainers)
+            author = (issue.get("user") or {}).get("login")
+            evidence = judge_evidence(summary, comments, author, maintainers)
+            evidence["maintainer_answer"] = maintainer_answer(comments, author, maintainers)
             kind = resolution_kind(record, tag, evidence)
             if not kind:
                 # 어디서 빠지는지 보이게 종료 사유와 근거 수준을 붙인다 (예: no_resolution:not_planned/weak)
-                reason = f"no_resolution:{record.get('state_reason')}/{evidence['evidence_level']}"
+                reason = ("no_resolution:bot_closed" if is_bot_user(issue.get("closed_by")) and not evidence["human_comments"]
+                          else f"no_resolution:{record.get('state_reason')}/{evidence['evidence_level']}")
                 report.rejected[reason] = report.rejected.get(reason, 0) + 1
                 continue
             accepted += 1

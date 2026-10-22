@@ -15,9 +15,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from agent.library_corpus import prefilter, resolution_kind  # noqa: E402
+from agent.library_corpus import maintainer_answer, prefilter, resolution_kind  # noqa: E402
 from src.collectors.cache import RawStore, repo_slug  # noqa: E402
-from src.collectors.comment_collector import comment_priority  # noqa: E402
+from src.collectors.comment_collector import MAINTAINER_ASSOCIATIONS, comment_priority  # noqa: E402
 from src.collectors.issue_collector import to_shallow_record  # noqa: E402
 from src.collectors.pull_request_collector import summarize_pull_request  # noqa: E402
 from src.collectors.timeline_collector import extract_links  # noqa: E402
@@ -53,8 +53,12 @@ def diagnose(raw: RawStore, repo: str, tagging: dict) -> list[dict]:
         record = to_shallow_record(repo, issue)
         tag = tag_issue(record, rules, {})
         summary = summary_from_raw(raw, repo, number, issue, comments)
-        evidence = judge_evidence(summary, comments, (issue.get("user") or {}).get("login"), maintainers)
+        author = (issue.get("user") or {}).get("login")
+        evidence = judge_evidence(summary, comments, author, maintainers)
+        evidence["maintainer_answer"] = maintainer_answer(comments, author, maintainers)
         human = [c for c in comments if not is_bot(c) and not is_automated_notice(c)]
+        maintainer_lengths = [len((c.get("body") or "").strip()) for c in human
+                              if c.get("author_association") in MAINTAINER_ASSOCIATIONS]
         rows.append({
             "number": number, "state_reason": issue.get("state_reason"), "type": tag["issue_type"],
             "labels": ",".join(record["labels"])[:40], "closed_by": (issue.get("closed_by") or {}).get("login"),
@@ -64,6 +68,7 @@ def diagnose(raw: RawStore, repo: str, tagging: dict) -> list[dict]:
             "events": ",".join(f"{k}:{v}" for k, v in sorted((summary["timeline_events"] or {}).items())),
             "prs": f"{len(summary['linked_pull_requests'])}(merged {sum(bool(p.get('merged')) for p in summary['linked_pull_requests'])})",
             "commit": summary["closed_by_commit"], "level": evidence["evidence_level"],
+            "maint_len": max(maintainer_lengths, default=0), "answer": evidence["maintainer_answer"],
             "prefilter": prefilter(tag, record), "kind": resolution_kind(record, tag, evidence),
         })
     return rows
@@ -81,12 +86,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.index / 'raw'}에 {args.repo} 원본이 없습니다")
         return 1
     columns = ["number", "state_reason", "type", "closed_by", "comments", "associations", "signals", "prs", "commit",
-               "level", "kind", "labels", "events"]
+               "level", "maint_len", "answer", "kind", "labels", "events"]
     print("\t".join(columns))
     for row in rows:
         print("\t".join(str(row[c]) for c in columns))
     print()
-    for key in ("state_reason", "level", "kind", "associations", "closed_by"):
+    for key in ("state_reason", "level", "answer", "kind", "associations", "closed_by"):
         print(f"{key}: " + ", ".join(f"{k} {v}" for k, v in Counter(str(r[key]) for r in rows).most_common(8)))
     return 0
 

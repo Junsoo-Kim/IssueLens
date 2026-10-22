@@ -5,7 +5,7 @@
     python scripts/build_agent_corpus.py --skip-embed                               # 수집·판정만 확인 (임베딩 비용 없음)
     python scripts/build_agent_corpus.py --holdout 5                                # 판정 통과 5건마다 1건은 평가용으로 남김
 
-결과는 agent_index/(raw, chroma, sparse, corpus_state.json)에 쌓인다. 원문이 들어 있어 커밋하지 않는다.
+결과는 agent_index/(raw, cache, chroma, sparse, corpus_state.json)에 쌓인다. 원문이 들어 있어 커밋하지 않는다.
 이미 구축한 라이브러리는 --refresh-days가 지나기 전까지 건너뛰고, 지나면 마지막 구축 이후 종료된 이슈만 더한다.
 """
 from __future__ import annotations
@@ -23,6 +23,7 @@ from dotenv import load_dotenv  # noqa: E402
 from agent.library_corpus import (LibraryCorpusBuilder, LibraryIndex, default_post, load_state,  # noqa: E402
                                   needs_build, save_state)
 from agent.registry import load_corpus  # noqa: E402
+from src.collectors.cache import ResponseCache  # noqa: E402
 from src.collectors.github_client import DEFAULT_API_VERSION, DEFAULT_USER_AGENT, GitHubClient, HttpSettings  # noqa: E402
 from src.config import load_yaml  # noqa: E402
 
@@ -53,6 +54,8 @@ def main(argv: list[str] | None = None, client: GitHubClient | None = None, post
     parser.add_argument("--holdout", type=int, default=0, help="판정을 통과한 N건마다 1건을 평가용으로 남긴다")
     parser.add_argument("--refresh-days", type=int, default=7)
     parser.add_argument("--force", action="store_true", help="최신이어도 다시 구축(증분)한다")
+    parser.add_argument("--rebuild", action="store_true",
+                        help="상태를 무시하고 처음부터 다시 판정한다 (판정 기준을 바꾼 뒤. 받은 응답은 캐시에서 다시 쓴다)")
     parser.add_argument("--request-budget", type=int, help="라이브러리당 GitHub 요청 상한")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
@@ -64,7 +67,8 @@ def main(argv: list[str] | None = None, client: GitHubClient | None = None, post
     token = os.getenv("GITHUB_TOKEN") or None
     client = client or GitHubClient(token=token, api_version=os.getenv("GITHUB_API_VERSION") or DEFAULT_API_VERSION,
                                     user_agent=os.getenv("GITHUB_USER_AGENT") or DEFAULT_USER_AGENT,
-                                    settings=HttpSettings.from_dict(app.get("http")))
+                                    settings=HttpSettings.from_dict(app.get("http")),
+                                    cache=ResponseCache(args.out / "cache"))
     if embedder is None and not args.skip_embed:
         from src.indexing.embeddings import LazyOpenAIEmbedder
         embedder = LazyOpenAIEmbedder(retrieval.get("embedding", {}).get("model", "text-embedding-3-small"))
@@ -84,6 +88,9 @@ def main(argv: list[str] | None = None, client: GitHubClient | None = None, post
         return 2
 
     state = load_state(args.out)
+    if args.rebuild:
+        for library in libraries:
+            state.pop(library.repo, None)
     for number, library in enumerate(libraries, start=1):
         mode = needs_build(state, library.repo, args.refresh_days, embedded=embedder is not None) or ("incremental" if args.force else None)
         if mode is None:
