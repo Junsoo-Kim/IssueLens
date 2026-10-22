@@ -41,6 +41,13 @@ GENERIC_EXCEPTIONS = {"exception", "error", "runtimeexception", "nullpointerexce
 TOKEN_QUERIES = 2
 
 
+def token_priority(token: str) -> tuple:
+    """변별력이 높은 토큰을 앞에 둔다. 흔한 예외, 소문자 경로(로거 이름 등), 한 단어 클래스(Template)는 뒤로,
+    나머지는 긴 이름(AspectTemplateEngine, JAXPValidationUtil)부터."""
+    humps = sum(1 for a, b in zip(token, token[1:]) if a.islower() and b.isupper())
+    return (token.lower() in GENERIC_EXCEPTIONS, not any(c.isupper() for c in token), humps == 0, -len(token))
+
+
 def search_token(token: str) -> str:
     """패키지·메서드 경로는 클래스 이름만 남긴다. 이슈에는 전체 경로보다 클래스 이름이 더 자주 나온다.
     예: com.linkedin...AspectTemplateEngine.applyPatch -> AspectTemplateEngine"""
@@ -54,7 +61,7 @@ def collection_queries(search_queries: list[str], exact_tokens: list[str], limit
     모두 함께 나오는 이슈만 걸려 원래 이슈 말고는 찾기 어렵다. 매번 같은 검색어라 캐시도 적중한다.
     버전 번호만으로는 엉뚱한 이슈가 걸리므로 빼고, 흔한 예외는 뒤로 미룬다."""
     tokens = list(dict.fromkeys(search_token(t) for t in exact_tokens if not VERSION_ONLY.fullmatch(t)))
-    tokens.sort(key=lambda t: t.lower() in GENERIC_EXCEPTIONS)
+    tokens.sort(key=token_priority)
     head = [f'"{t}"' for t in tokens[:TOKEN_QUERIES]]
     return list(dict.fromkeys([*head, *search_queries]))[:limit]
 

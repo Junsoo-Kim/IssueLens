@@ -206,4 +206,14 @@ def test_collection_queries_shorten_paths_to_class_names():
     from src.collectors.query_time import collection_queries
 
     tokens = ["org.xml.sax.SAXException", "JAXPValidationUtil.getSchema", "org.key.sam.common"]
-    assert collection_queries(["q"], tokens) == ['"SAXException"', '"JAXPValidationUtil"', "q"]
+    assert collection_queries(["q"], tokens) == ['"JAXPValidationUtil"', '"SAXException"', "q"]
+
+
+def test_collection_queries_prefer_distinctive_class_names():
+    from src.collectors.query_time import collection_queries
+
+    tokens = ["java.lang.NullPointerException", "com.linkedin.metadata.aspect.patch.template.Template.applyPatch",
+              "com.linkedin.data.template.RecordTemplate", "AspectTemplateEngine.applyPatch", "org.key.sam.common"]
+    assert collection_queries(["q"], tokens)[:2] == ['"AspectTemplateEngine"', '"RecordTemplate"']
+    keycloak = ["org.xml.sax.SAXException", "org.key.sam.common", "JAXPValidationUtil.getSchema"]
+    assert collection_queries(["q"], keycloak)[:2] == ['"JAXPValidationUtil"', '"SAXException"']
