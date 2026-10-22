@@ -21,17 +21,27 @@ inputs:
 runs:
   using: composite
   steps:
+    # pip 캐시(cache-dependency-path)는 쓰지 않는다. 같은 레포에서 uses: ./로 쓰면 action_path가 "./"로 끝나
+    # setup-python이 경로를 거부한다
     - uses: actions/setup-python@v5
       with:
         python-version: "3.12"
-        cache: pip
-        cache-dependency-path: ${{ github.action_path }}/requirements.txt
     # 라이브러리 코퍼스(A 방식)를 실행 사이에 이어 쓴다. 원문은 이 레포의 Action 캐시 안에만 둔다
     - uses: actions/cache@v4
       with:
         path: ~/.issuelens
         key: issuelens-corpus-${{ runner.os }}-${{ github.run_id }}
         restore-keys: issuelens-corpus-${{ runner.os }}-
+    - name: Check secrets
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+      run: |
+        # 키가 없으면 규칙 기반 후보만으로 코멘트가 달려 근거 없는 리뷰처럼 보이므로 실행하지 않는다
+        if [ -z "$OPENAI_API_KEY" ]; then
+          echo "::error::OPENAI_API_KEY secret이 없습니다. 레포 Settings > Secrets and variables > Actions에 추가하세요."
+          exit 1
+        fi
     - name: Install
       shell: bash
       run: python -m pip install --quiet -r "$GITHUB_ACTION_PATH/requirements.txt"
