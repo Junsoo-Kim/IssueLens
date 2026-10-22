@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None, **overrides) -> int:
     parser.add_argument("--graph", action="store_true", help="그래프 구조(Mermaid)만 출력")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     load_dotenv(ROOT / ".env")
 
     assistant = build_assistant(overrides.pop("root", ROOT), enable_collection=False if args.no_collect else None, **overrides)

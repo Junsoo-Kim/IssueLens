@@ -36,7 +36,7 @@ def describe_base_url(base_url: str | None, name: str = "OPENAI_BASE_URL") -> li
 
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     load_dotenv(ROOT / ".env")
     embedding_base_url, embedding_key = embedding_endpoint()
     print("\n".join(describe_base_url(os.getenv("OPENAI_BASE_URL"))))

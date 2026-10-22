@@ -59,7 +59,7 @@ def main(argv: list[str] | None = None, client: GitHubClient | None = None, post
     parser.add_argument("--request-budget", type=int, help="라이브러리당 GitHub 요청 상한")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     load_dotenv(ROOT / ".env")
 
     app = load_yaml(ROOT / "configs/app.yaml")

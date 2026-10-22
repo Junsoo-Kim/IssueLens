@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", help="마크다운 파일로 저장")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     samples = evaluation_samples(resolve_paths(ROOT, load_yaml(ROOT / "configs/app.yaml")), args.repo, args.limit)
     if samples is None:

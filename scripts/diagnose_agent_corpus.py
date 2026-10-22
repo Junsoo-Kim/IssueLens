@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--index", type=Path, default=ROOT / "agent_index")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     rows = diagnose(RawStore(args.index / "raw"), args.repo, load_yaml(ROOT / "configs/repositories.yaml").get("tagging", {}))
     if not rows:
         print(f"{args.index / 'raw'}에 {args.repo} 원본이 없습니다")

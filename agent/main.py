@@ -133,7 +133,7 @@ def main(argv: list[str] | None = None, env: dict | None = None, fetch=None, llm
     parser.add_argument("--no-collect", action="store_true", help="동적 수집(GitHub 검색) 없이 색인된 근거만 쓴다")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if env is None:  # 로컬 실행: .env의 OPENAI_API_KEY, GITHUB_TOKEN을 읽는다 (Action에서는 secrets가 환경 변수로 들어온다)
         from dotenv import load_dotenv
         load_dotenv(ROOT / ".env")

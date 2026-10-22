@@ -88,7 +88,7 @@ def build(argv: list[str] | None = None, embedder=None) -> tuple[int, dict | Non
     parser.add_argument("--reset", action="store_true", help="기존 컬렉션과 BM25 인덱스를 지우고 다시 만든다")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     load_dotenv(ROOT / ".env")
 
     for path in (args.selection, args.deep_selection, args.tagged, args.deep_issues):

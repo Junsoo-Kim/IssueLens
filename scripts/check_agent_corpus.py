@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None, client: GitHubClient | None = None, fetc
     parser.add_argument("--out", type=Path, default=REPORT)
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     load_dotenv(ROOT / ".env")
     client = client or GitHubClient(token=os.getenv("GITHUB_TOKEN") or None,
                                     api_version=os.getenv("GITHUB_API_VERSION") or DEFAULT_API_VERSION,

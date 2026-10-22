@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None, **overrides) -> int:
     parser.add_argument("--out", default="data/processed/eval_report.md", help="답변 전문 저장 위치")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     root = overrides.pop("root", ROOT)
     load_dotenv(root / ".env")
 

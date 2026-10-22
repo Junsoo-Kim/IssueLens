@@ -284,7 +284,7 @@ def main(argv: list[str] | None = None, **overrides) -> int:
     parser.add_argument("--out", default=OUT_DIR)
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     root = overrides.pop("root", ROOT)
     load_dotenv(root / ".env")
     ctx = Context(root, overrides)
