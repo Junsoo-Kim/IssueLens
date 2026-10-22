@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from agent.diff_reader import parse_patch, parse_unified_diff
 from agent.main import load_settings, main, pr_from_event
@@ -106,7 +107,7 @@ def test_main_reads_pr_from_action_event(tmp_path, make_client, monkeypatch, cap
     env = {"GITHUB_EVENT_PATH": str(event), "GITHUB_REPOSITORY": repo}
     assert pr_from_event(env) == (repo, 7)
 
-    assert main(["--dry-run", "--target-root", str(tmp_path)], env=env) == 0
+    assert main(["--dry-run", "--no-pypi", "--target-root", str(tmp_path), "--cache-dir", str(tmp_path)], env=env) == 0
     printed = capsys.readouterr().out
     assert "octo/app#7, abc1234" in printed and "리뷰 1개 / 건너뜀 1개" in printed
     assert "uv.lock (lock)" in printed
@@ -115,7 +116,7 @@ def test_main_reads_pr_from_action_event(tmp_path, make_client, monkeypatch, cap
 def test_main_reads_local_diff(tmp_path, capsys):
     patch = tmp_path / "changes.patch"
     patch.write_text(DIFF, encoding="utf-8")
-    assert main(["--diff", str(patch), "--dry-run", "--json", "--target-root", str(tmp_path)]) == 0
+    assert main(["--diff", str(patch), "--dry-run", "--json", "--no-pypi", "--target-root", str(tmp_path), "--cache-dir", str(tmp_path)]) == 0
     data = json.loads(capsys.readouterr().out)
     assert [f["path"] for f in data["diff"]["files"] if not f["skipped"]] == ["requirements.txt", "app/llm.py"]
     assert data["signals"]["python_project"]
@@ -231,3 +232,94 @@ def test_package_names():
     assert normalize_package("LangChain_OpenAI") == "langchain-openai"
     assert package_of_import("yaml") == "pyyaml" and package_of_import("google.generativeai.types") == "google-generativeai"
     assert package_of_import("langchain_core.messages") == "langchain-core"
+
+
+# ---------------------------------------------------------------- 단계 C: 큐레이션 목록과 패키지 매핑
+
+from agent.registry import Registry, github_repo_from_urls, load_corpus  # noqa: E402
+from src.config import PROJECT_ROOT  # noqa: E402
+
+
+def test_curated_corpus_is_well_formed():
+    corpus = load_corpus(PROJECT_ROOT / "configs/agent_corpus.yaml")
+    repos = [lib.repo for lib in corpus.libraries]
+    assert 15 <= len(repos) <= 20 and len(set(r.lower() for r in repos)) == len(repos)  # 기획서 5.15절
+    packages = [p for lib in corpus.libraries for p in lib.packages]
+    assert len(packages) == len(set(packages))  # 패키지가 두 저장소에 걸리지 않는다
+    assert corpus.by_package()["langchain-openai"].repo == "langchain-ai/langchain"
+    assert all(re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", p) for p in packages)  # PEP 503 정규화 이름
+
+
+def test_github_repo_from_pypi_urls():
+    urls = {"Homepage": "https://docs.example.com", "Source": "https://github.com/acme/widget.git",
+            "Funding": "https://github.com/sponsors/acme"}
+    assert github_repo_from_urls(urls) == "acme/widget"
+    assert github_repo_from_urls({"Docs": "https://x.io"}, "https://github.com/acme/tool/tree/main") == "acme/tool"
+    assert github_repo_from_urls({"Funding": "https://github.com/sponsors/acme"}) is None
+    assert github_repo_from_urls(None) is None
+
+
+def test_registry_prefers_curated_then_pypi_with_cache(tmp_path):
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        if "tenacity" in url:
+            return {"info": {"project_urls": {"Source": "https://github.com/jd/tenacity"}}}
+        if "langchain-mistralai" in url:  # 목록에 없는 패키지지만 큐레이션 저장소에 있음
+            return {"info": {"project_urls": {"Repository": "https://github.com/langchain-ai/langchain"}}}
+        return None
+
+    registry = Registry(load_corpus(PROJECT_ROOT / "configs/agent_corpus.yaml"), tmp_path, fetch)
+    assert (registry.resolve("OpenAI").repo, registry.resolve("openai").source) == ("openai/openai-python", "curated")
+    tenacity = registry.resolve("tenacity")
+    assert (tenacity.repo, tenacity.source, tenacity.curated) == ("jd/tenacity", "pypi", False)
+    mistral = registry.resolve("langchain_mistralai")
+    assert mistral.repo == "langchain-ai/langchain" and mistral.curated  # 같은 저장소면 큐레이션 코퍼스를 쓴다
+    unknown = registry.resolve("no-such-pkg")
+    assert (unknown.repo, unknown.source) == (None, "unknown")
+    assert not any("openai" in c for c in calls)  # 큐레이션 패키지는 PyPI를 부르지 않는다
+
+    again = Registry(load_corpus(PROJECT_ROOT / "configs/agent_corpus.yaml"), tmp_path, fetch)
+    before = len(calls)
+    assert again.resolve("tenacity").repo == "jd/tenacity" and len(calls) == before  # 캐시 파일 재사용
+
+
+def test_main_prints_library_mapping(tmp_path, capsys):
+    patch = tmp_path / "changes.patch"
+    patch.write_text(SIGNAL_DIFF, encoding="utf-8")
+    assert main(["--diff", str(patch), "--dry-run", "--target-root", str(tmp_path), "--cache-dir", str(tmp_path)],
+                fetch=lambda url: {"info": {"project_urls": {"Source": "https://github.com/psf/requests"}}}) == 0
+    printed = capsys.readouterr().out
+    assert "openai -> openai/openai-python (큐레이션)" in printed
+    assert "requests -> psf/requests (PyPI)" in printed
+
+
+def test_check_agent_corpus_reports_problems(tmp_path, make_client, capsys):
+    from scripts import check_agent_corpus
+
+    corpus = tmp_path / "corpus.yaml"
+    corpus.write_text("libraries:\n  - {repo: acme/widget, category: x, packages: [widget, widget-extra]}\n"
+                      "  - {repo: acme/old, category: x, packages: [old]}\n", encoding="utf-8")
+    routes = {
+        "/repos/acme/widget": [FakeResponse(json_data={"full_name": "acme/widget", "archived": False,
+                                                        "has_discussions": True, "has_issues": True})],
+        "/repos/acme/old": [FakeResponse(json_data={"full_name": "acme/new-name", "archived": True})],
+        "/search/issues": [FakeResponse(json_data={"total_count": 500})],
+    }
+    client, _ = make_client(routes)
+
+    def fetch(url):
+        if url.endswith("/widget/json"):
+            return {"info": {"project_urls": {"Source": "https://github.com/acme/widget"}}}
+        if url.endswith("/widget-extra/json"):
+            return {"info": {"project_urls": {"Source": "https://github.com/someone/fork"}}}
+        return None
+
+    out = tmp_path / "report.json"
+    assert check_agent_corpus.main(["--corpus", str(corpus), "--out", str(out)], client=client, fetch=fetch) == 0
+    report = {r["repo"]: r for r in json.loads(out.read_text(encoding="utf-8"))["libraries"]}
+    assert report["acme/widget"]["problems"] == ["widget-extra의 저장소가 다름: someone/fork"]
+    assert "이름이 바뀜: acme/new-name" in report["acme/old"]["problems"]
+    assert "보관(archived)된 저장소" in report["acme/old"]["problems"] and "PyPI에 없음: old" in report["acme/old"]["problems"]
+    assert "2개 중 문제 없음 0개" in capsys.readouterr().out

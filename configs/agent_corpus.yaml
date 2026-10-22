@@ -1,0 +1,78 @@
+# 에이전트 코퍼스: Python AI·LLM 주요 라이브러리 (기획서 5.15절, 17.5절)
+#
+# packages: 이 저장소에서 배포하는 PyPI 패키지 (PEP 503 정규화 이름). 대상 레포의 의존성·import를 저장소로 바꿀 때 쓴다.
+# 저장소 이름·규모·Discussions 사용 여부·패키지 매핑은 확정 전에 로컬에서 확인한다:
+#     python scripts/check_agent_corpus.py
+# 목록에 없는 패키지는 PyPI의 project_urls로 저장소를 찾아 동적으로 수집한다.
+
+defaults:
+  shallow_candidate_limit: 1000   # 최근 종료 이슈 얕은 수집 상한
+  deep_target_action: 60          # A 방식: Action에서 라이브러리당 상세 수집 (첫 구축 예산)
+  deep_target_local: 150          # C 방식: 로컬 전체 코퍼스
+  discussions: true               # Discussions Q&A 채택 답변 수집 (저장소에서 꺼져 있으면 건너뜀)
+
+libraries:
+  # LLM SDK
+  - repo: openai/openai-python
+    category: llm_sdk
+    packages: [openai]
+  - repo: anthropics/anthropic-sdk-python
+    category: llm_sdk
+    packages: [anthropic]
+  - repo: BerriAI/litellm
+    category: llm_sdk
+    packages: [litellm]
+  - repo: ollama/ollama-python
+    category: llm_sdk
+    packages: [ollama]
+
+  # 프레임워크·에이전트
+  - repo: langchain-ai/langchain
+    category: framework
+    packages: [langchain, langchain-core, langchain-text-splitters, langchain-openai, langchain-anthropic,
+               langchain-ollama, langchain-huggingface, langchain-chroma, langchain-qdrant]
+  - repo: langchain-ai/langgraph
+    category: framework
+    packages: [langgraph, langgraph-checkpoint, langgraph-prebuilt, langgraph-sdk]
+  - repo: run-llama/llama_index
+    category: framework
+    packages: [llama-index, llama-index-core]
+  - repo: microsoft/autogen
+    category: framework
+    packages: [autogen-agentchat, autogen-core, autogen-ext]
+  - repo: crewAIInc/crewAI
+    category: framework
+    packages: [crewai]
+  - repo: stanfordnlp/dspy
+    category: framework
+    packages: [dspy, dspy-ai]
+
+  # 모델·추론
+  - repo: huggingface/transformers
+    category: model
+    packages: [transformers]
+  - repo: huggingface/huggingface_hub
+    category: model
+    packages: [huggingface-hub]
+  - repo: vllm-project/vllm
+    category: model
+    packages: [vllm]
+
+  # 벡터 DB·검색
+  - repo: chroma-core/chroma
+    category: vector_db
+    packages: [chromadb]
+  - repo: qdrant/qdrant-client
+    category: vector_db
+    packages: [qdrant-client]
+
+  # 주변 필수
+  - repo: pydantic/pydantic
+    category: core
+    packages: [pydantic]
+  - repo: fastapi/fastapi
+    category: core
+    packages: [fastapi]
+  - repo: streamlit/streamlit
+    category: core
+    packages: [streamlit]

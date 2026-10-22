@@ -5,7 +5,7 @@
     git diff main | python -m agent.main --diff - --dry-run
 
 GitHub Action에서는 인자 없이 실행하면 GITHUB_EVENT_PATH의 pull_request 이벤트에서 PR을 읽는다.
-현재 단계(17.12절 B)까지는 변경 파일 수집·마스킹 결과와 규칙 기반 변경 신호만 출력한다.
+현재 단계(17.12절 C)까지는 변경 파일 수집·마스킹 결과, 규칙 기반 변경 신호, 라이브러리 저장소 매핑만 출력한다.
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from agent.diff_reader import DiffBundle, fetch_pull_request, parse_unified_diff  # noqa: E402
+from agent.registry import Registry, format_resolutions, load_corpus  # noqa: E402
 from agent.signals import extract_signals, format_signals  # noqa: E402
 from src.collectors.github_client import DEFAULT_API_VERSION, DEFAULT_USER_AGENT, GitHubClient, HttpSettings  # noqa: E402
 from src.config import load_yaml  # noqa: E402
@@ -87,7 +88,7 @@ def read_bundle(args, env: dict, settings: dict) -> DiffBundle:
     return fetch_pull_request(github_client(env), repo, number, settings)
 
 
-def main(argv: list[str] | None = None, env: dict | None = None) -> int:
+def main(argv: list[str] | None = None, env: dict | None = None, fetch=None) -> int:
     parser = argparse.ArgumentParser(description="IssueLens PR 선제 리뷰 에이전트")
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--pr", help="owner/repo#번호")
@@ -95,6 +96,8 @@ def main(argv: list[str] | None = None, env: dict | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="코멘트를 게시하지 않고 출력만 한다")
     parser.add_argument("--target-root", type=Path, help="대상 레포 루트 (.github/issuelens.yml 위치, 기본 현재 폴더)")
     parser.add_argument("--json", action="store_true", help="리뷰 입력을 JSON으로 출력")
+    parser.add_argument("--no-pypi", action="store_true", help="큐레이션 목록에 없는 패키지의 PyPI 조회를 하지 않는다")
+    parser.add_argument("--cache-dir", type=Path, default=ROOT / "data/cache", help="패키지 매핑 캐시 위치")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
@@ -103,10 +106,15 @@ def main(argv: list[str] | None = None, env: dict | None = None) -> int:
     settings = load_settings(args.target_root)
     bundle = read_bundle(args, env, settings.get("diff", {}))
     signals = extract_signals(bundle, args.target_root)
+    registry = Registry(load_corpus(ROOT / "configs/agent_corpus.yaml"), args.cache_dir,
+                        fetch=(lambda url: None) if args.no_pypi else fetch)
+    resolutions = registry.resolve_signals(signals) if signals.python_project else []
     if args.json:
-        print(json.dumps({"diff": bundle.as_dict(), "signals": signals.as_dict()}, ensure_ascii=False, indent=2))
+        print(json.dumps({"diff": bundle.as_dict(), "signals": signals.as_dict(),
+                          "libraries": registry.as_dict(resolutions)}, ensure_ascii=False, indent=2))
     else:
-        print(format_bundle(bundle) + "\n\n" + format_signals(signals))
+        print("\n\n".join([format_bundle(bundle), format_signals(signals)]
+                           + ([format_resolutions(resolutions)] if resolutions else [])))
     if not args.dry_run:
         print("\n코멘트 게시는 아직 구현 전입니다 (17.12절 단계 F). 지금은 --dry-run과 같게 동작합니다.", file=sys.stderr)
     return 0
