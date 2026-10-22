@@ -218,3 +218,15 @@ def test_ask_cli_prints_stages_answer_and_evidence(rag_root, capsys):
 
     assert main(["--graph"], root=rag_root, llm=FakeLLM(), embedder=FakeEmbedder()) == 0
     assert "retrieve" in capsys.readouterr().out
+
+
+def test_dense_failure_warning_reaches_answer(rag_root):
+    from src.retrieval.dense_retriever import DenseRetriever
+    from tests.test_retrieval import FlakyCollection
+
+    assistant = make_assistant(rag_root, FakeLLM())
+    for name in ("issue_dense", "document_dense"):
+        setattr(assistant.retriever, name, DenseRetriever(FlakyCollection(99), lambda q: [0.0], sleep=lambda s: None))
+    state = assistant.ask("TokenVerificationException after upgrade")
+    assert state["answered_from_evidence"]
+    assert any("BM25 결과만" in w for w in state["warnings"])

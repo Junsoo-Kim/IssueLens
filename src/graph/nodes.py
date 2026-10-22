@@ -113,6 +113,7 @@ class RAGPipeline:
             "sufficient": final is not None,
             "grade": best["grade"] if best else {},
             "nearest_issues": nearest,
+            "retrieval_warnings": list(dict.fromkeys(w for a in attempts for w in a["_result"].trace.get("warnings", []))),
             "timings": timings,
         }
 
@@ -139,12 +140,13 @@ class RAGPipeline:
         started = time.perf_counter()
         question = state["question"]
         evidence = state.get("evidence", [])
-        warnings: list[str] = []
+        warnings: list[str] = list(state.get("retrieval_warnings", []))
         answer, cited, check, from_evidence, general = NO_EVIDENCE_MESSAGE, [], {"cited": [], "invalid": []}, False, None
 
         try:
             if state.get("sufficient") and evidence and self.llm is not None:
-                answer, check, warnings = self._grounded_answer(question, evidence)
+                answer, check, answer_warnings = self._grounded_answer(question, evidence)
+                warnings.extend(answer_warnings)
                 from_evidence = answer.strip() != NO_EVIDENCE_MESSAGE
                 cited = [e for e in evidence if e.number in check["cited"]]
                 if from_evidence and not cited:

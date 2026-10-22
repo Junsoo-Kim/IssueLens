@@ -18,6 +18,7 @@ class RAGState(TypedDict, total=False):
     sufficient: bool
     grade: dict
     nearest_issues: list[dict]  # 근거 부족 시 보여 줄 가장 가까운 사례 (주장 없이 링크만)
+    retrieval_warnings: list[str]  # 예: Dense 검색 실패로 BM25만 사용
     # generate 노드
     answer: str
     answered_from_evidence: bool

@@ -251,3 +251,52 @@ def test_search_cli(index_dirs, capsys):
     assert "라우팅: ['keycloak/keycloak'" in out and "[근거 1] keycloak/keycloak#2" in out
     assert main(args + ["--json"], embed_query=lambda t: embed([t])[0]) == 0
     assert '"query_type": "error_log"' in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- Dense 검색 실패 대응
+
+
+class FlakyCollection:
+    """처음 failures번은 Chroma 내부 오류를 내는 가짜 컬렉션."""
+
+    def __init__(self, failures):
+        self.failures = failures
+        self.calls = 0
+
+    def count(self):
+        return 2
+
+    def query(self, **kwargs):
+        from chromadb.errors import InternalError
+
+        self.calls += 1
+        if self.calls <= self.failures:
+            raise InternalError("Error creating hnsw segment reader: Nothing found on disk")
+        return {"ids": [["a", "b"]], "distances": [[0.1, 0.3]], "metadatas": [[{}, {}]]}
+
+
+def test_dense_search_retries_then_raises():
+    from src.retrieval.dense_retriever import RETRY_DELAYS, DenseRetriever, DenseSearchUnavailable
+
+    sleeps = []
+    flaky = DenseRetriever(FlakyCollection(failures=2), lambda q: [0.0], sleep=sleeps.append)
+    assert [h[0] for h in flaky.search("q", 2)] == ["a", "b"]
+    assert sleeps == list(RETRY_DELAYS[:2])
+
+    broken = DenseRetriever(FlakyCollection(failures=99), lambda q: [0.0], sleep=lambda s: None)
+    with pytest.raises(DenseSearchUnavailable):
+        broken.search("q", 2)
+    assert broken.collection.calls == len(RETRY_DELAYS) + 1
+
+
+def test_hybrid_falls_back_to_sparse_when_dense_fails(index_dirs):
+    from src.retrieval.dense_retriever import DenseRetriever
+
+    retriever = make_retriever(index_dirs)
+    for name in ("issue_dense", "document_dense"):
+        setattr(retriever, name, DenseRetriever(FlakyCollection(failures=99), lambda q: [0.0], sleep=lambda s: None))
+    result = retriever.retrieve("TokenVerificationException after upgrade")
+    assert issue_id_of_record(result.issues[0].id) == "keycloak/keycloak#2"  # BM25만으로 계속
+    assert result.trace["issue_rankings"]["dense"] == []
+    assert result.trace["warnings"] and "BM25 결과만" in result.trace["warnings"][0]
+    assert retriever.retrieve("x", mode="sparse").trace["warnings"] == []  # 호출마다 초기화
