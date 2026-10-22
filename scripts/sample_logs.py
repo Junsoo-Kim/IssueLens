@@ -62,6 +62,19 @@ def sample(rows: list[dict], raw: RawStore, per_repo: int) -> list[dict]:
     return samples
 
 
+def evaluation_samples(paths: dict, repo: str | None = None, per_repo: int = 1) -> list[dict] | None:
+    """평가용 이슈의 로그 샘플. 선별 결과가 없으면 None."""
+    selection = paths["manifest_dir"] / "final_selection.jsonl"
+    if not selection.exists():
+        return None
+    rows = [r for r in read_jsonl(selection) if r["final_split"] == "evaluation"]
+    for row in rows:
+        row.setdefault("repo", row["issue_id"].rsplit("#", 1)[0])
+        row.setdefault("number", int(row["issue_id"].rsplit("#", 1)[1]))
+    rows = [r for r in rows if not repo or r["repo"] == repo]
+    return sample(rows, RawStore(paths["raw_dir"]), per_repo)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="로그 진단 시험용 오류 로그 추출 (평가용 이슈)")
     parser.add_argument("--repo", help="저장소 하나만 (owner/repo)")
@@ -71,16 +84,10 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
 
-    paths = resolve_paths(ROOT, load_yaml(ROOT / "configs/app.yaml"))
-    selection = paths["manifest_dir"] / "final_selection.jsonl"
-    if not selection.exists():
-        print(f"{selection}가 없습니다. 먼저 수집과 선별을 실행하세요.", file=sys.stderr)
+    samples = evaluation_samples(resolve_paths(ROOT, load_yaml(ROOT / "configs/app.yaml")), args.repo, args.limit)
+    if samples is None:
+        print("final_selection.jsonl이 없습니다. 먼저 수집과 선별을 실행하세요.", file=sys.stderr)
         return 2
-    rows = [r for r in read_jsonl(selection) if r["final_split"] == "evaluation" and (not args.repo or r["repo"] == args.repo)]
-    for row in rows:
-        row.setdefault("repo", row["issue_id"].rsplit("#", 1)[0])
-        row.setdefault("number", int(row["issue_id"].rsplit("#", 1)[1]))
-    samples = sample(rows, RawStore(paths["raw_dir"]), args.limit)
 
     parts = []
     for s in samples:
