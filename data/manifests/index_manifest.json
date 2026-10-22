@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-21T08:41:23+00:00",
+  "generated_at": "2026-10-22T04:36:28+00:00",
   "index_version": "1",
   "tokenizer_version": "1",
   "splits": [
@@ -57,6 +57,7 @@
       "pull_request": 272,
       "pull_patch": 908
     },
+    "query_time_documents": 160,
     "rejected_documents": 3472,
     "rejected_by_reason": {
       "bot_comment": 418,
@@ -68,12 +69,12 @@
       "comment_over_limit": 126,
       "generated_or_binary_file": 412
     },
-    "chunks": 10520,
+    "chunks": 11090,
     "chunks_by_type": {
-      "issue_body": 3245,
-      "comment": 3420,
-      "pull_request": 1477,
-      "pull_patch": 2378
+      "issue_body": 3409,
+      "comment": 3734,
+      "pull_request": 1502,
+      "pull_patch": 2445
     },
     "redacted_documents": 140,
     "truncated_documents": 90,
@@ -100,14 +101,14 @@
       "thingsboard/thingsboard": 75
     },
     "issue_documents": {
-      "airbytehq/airbyte": 1622,
-      "conductor-oss/conductor": 1030,
-      "datahub-project/datahub": 1618,
-      "getsentry/sentry": 1040,
-      "keycloak/keycloak": 1433,
+      "airbytehq/airbyte": 1841,
+      "conductor-oss/conductor": 1064,
+      "datahub-project/datahub": 1626,
+      "getsentry/sentry": 1060,
+      "keycloak/keycloak": 1651,
       "langgenius/dify": 1751,
-      "open-metadata/OpenMetadata": 1052,
-      "thingsboard/thingsboard": 974
+      "open-metadata/OpenMetadata": 1103,
+      "thingsboard/thingsboard": 994
     }
   },
   "sync": {
@@ -122,19 +123,19 @@
     "issue_documents": {
       "added": 0,
       "updated": 0,
-      "unchanged": 10520,
+      "unchanged": 11090,
       "deleted": 0,
-      "total": 10520,
+      "total": 11090,
       "dimensions": 1536
     }
   },
   "verification": {
     "issue_metadata_bm25": 580,
-    "issue_documents_bm25": 10520,
+    "issue_documents_bm25": 11090,
     "every_issue_has_documents": true,
     "issue_metadata_chroma": 580,
     "issue_metadata_ids_match": true,
-    "issue_documents_chroma": 10520,
+    "issue_documents_chroma": 11090,
     "issue_documents_ids_match": true
   },
   "missing_issues": []
