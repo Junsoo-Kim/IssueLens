@@ -1,0 +1,28 @@
+diff --git a/requirements.txt b/requirements.txt
+index 1111111..2222222 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,2 @@
+ fastapi==0.115.0
+-pydantic==1.10.13
++pydantic==2.9.2
+diff --git a/app/models.py b/app/models.py
+index 3333333..4444444 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -1,12 +1,15 @@
+ from pydantic import BaseModel, validator
+ 
+ 
+ class Message(BaseModel):
+     role: str
+     content: str
+ 
+     @validator("role")
+     def check_role(cls, value):
+         return value.lower()
+ 
++
++def load(payload: dict) -> dict:
++    message = Message.parse_obj(payload)
++    return message.dict(exclude_none=True)

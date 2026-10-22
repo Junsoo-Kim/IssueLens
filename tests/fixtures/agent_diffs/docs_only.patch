@@ -1,0 +1,10 @@
+diff --git a/README.md b/README.md
+index 1111111..2222222 100644
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,5 @@
+ # Demo app
+ 
+ Run `uvicorn app.main:app` to start.
++
++Settings are read from `settings.json` in the working directory.

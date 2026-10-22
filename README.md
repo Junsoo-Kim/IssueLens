@@ -3,7 +3,7 @@
 오픈소스 해결 이력 기반 장애 진단 RAG 챗봇입니다. 공개 오픈소스 저장소에서 해결된 이슈, 유지보수자 댓글, 해결 PR을 모아 색인하고, 장애 증상이나 오류 로그를 물으면 실제 근거를 인용해 원인 후보와 확인 절차를 답합니다. 근거가 없으면 지어내지 않고 "제공된 문서에서 확인되지 않습니다."라고 답합니다.
 
 - **결과물 1 (제출 대상, 구현 완료)**: 장애 진단 RAG 챗봇 (Streamlit, CLI)
-- **결과물 2 (확장, 설계 완료)**: Python AI·LLM 프로젝트용 PR 선제 리뷰 에이전트 (GitHub Action). 설계는 [기획서 17장](docs/IssueLens_기획서.md)을 참고하세요.
+- **결과물 2 (확장, 구현 완료·실사용 검증 중)**: Python AI·LLM 프로젝트용 PR 선제 리뷰 에이전트 (GitHub Action). [사용법](#pr-선제-리뷰-에이전트), 설계는 [기획서 17장](docs/IssueLens_기획서.md)
 
 > 이 답변은 공개 이슈와 문서를 검색해 제공하는 기술 조사 보조 결과입니다. 생성된 명령과 코드 변경은 저장소의 기여 규칙을 확인하고 격리된 환경에서 재현 테스트를 수행한 뒤 적용해야 합니다.
 
@@ -102,6 +102,26 @@ python scripts/ask.py --graph                                   # LangGraph 구�
 | `python scripts/export_evidence.py` | 요구사항 정의서 4장 증빙 중 명령 출력 항목 생성 ([체크리스트](docs/evidence_checklist.md)) |
 
 평가용 이슈(160건)는 색인에서 격리돼 있어, 그 이슈의 로그로 진단할 때 원본이 결과에 섞이지 않는지 확인합니다. 검증 출력 파일은 원문 일부를 담을 수 있어 `data/processed/` 아래(커밋 제외)에 저장합니다.
+
+## PR 선제 리뷰 에이전트
+
+Python AI·LLM 프로젝트의 PR을 읽고, 바뀐 코드가 쓰는 라이브러리(OpenAI, LangChain, Pydantic 등 18개)의 해결된 이슈·유지보수자 답변·Discussions 채택 답변을 근거로 리뷰 코멘트를 하나 남깁니다.
+
+```text
+PR 변경 파일 -> 마스킹 -> 변경 신호(의존성·import·API 호출·설정) -> 패키지 -> 라이브러리 저장소
+  -> 리뷰 후보 추출(프롬프트 4) -> 후보별 3단계 검색·근거 판정(챗봇 RAG 코어 재사용) -> 근거 기반 해결 방법
+  -> 코멘트 "알려진 이슈 기반 (RAG)" + "일반 코드 리뷰 (RAG 미사용)" -> 기존 코멘트 갱신 또는 새로 게시
+```
+
+| 명령 | 내용 |
+|---|---|
+| `python scripts/check_agent_corpus.py` | 코퍼스 저장소 목록 점검 (규모, Discussions, PyPI 매핑) |
+| `python scripts/build_agent_corpus.py` | 라이브러리 코퍼스 구축 (`agent_index/`, 커밋 제외). `--repo`로 일부만, `--rebuild`로 다시 판정 |
+| `python -m agent.main --diff changes.patch --dry-run` | 로컬 diff 리뷰 (코멘트를 게시하지 않고 출력) |
+| `python -m agent.main --pr owner/repo#12 --dry-run` | 실제 PR 리뷰 |
+| `python scripts/run_agent_checks.py` | 검증 PR 세트(`tests/fixtures/agent_diffs/cases.yaml`, 9개) dry-run과 판정 |
+
+GitHub Action으로 쓰려면 [워크플로 예시](docs/issuelens_review_workflow.yml)를 대상 레포의 `.github/workflows/`에 복사하고 secrets에 `OPENAI_API_KEY`를 넣습니다. `pull_request` 이벤트만 쓰고(포크 PR은 건너뜀), 권한은 `contents: read`, `pull-requests: write`뿐입니다. 라이브러리 코퍼스는 Action 캐시에 두고 필요한 라이브러리만 실행당 최대 3개씩 구축합니다. 리뷰 설정은 대상 레포의 `.github/issuelens.yml`로 바꿀 수 있습니다(`exclude_paths`, `max_general_findings`, `general_review` 등).
 
 ## 데이터 출처와 이용 조건
 
