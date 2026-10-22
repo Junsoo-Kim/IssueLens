@@ -345,3 +345,32 @@ def test_eval_question_set_is_well_formed():
         assert q.get(required[q["type"]]), q["id"]
         assert re.fullmatch(r"[\w.-]+/[\w.-]+#\d+", q.get("issue") or q.get("log_from") or "a/b#1"), q["id"]
     assert {q["type"] for q in data} == set(required)
+
+
+def test_export_evidence_writes_command_items(rag_root, tmp_path, capsys):
+    from scripts import export_evidence
+
+    out = tmp_path / "evidence"
+    code = export_evidence.main(["--only", "01", "05", "06", "07", "08", "09", "22", "23", "--out", str(out),
+                                 "--question", "TokenVerificationException after upgrade",
+                                 "--abstain-question", "NoSuchBeanDefinitionException 발생"],
+                                root=rag_root, llm=FakeLLM(), embedder=FakeEmbedder(), enable_collection=False)
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert (out / "05_chunk_count_compare.txt").exists()  # 픽스처 문서는 짧아 청크 수가 변하지 않는다
+    for name in ("06_topk_compare", "07_langgraph_structure", "08_citation_match",
+                 "09_abstention", "22_module_structure", "23_api_etiquette"):
+        assert f"PASS  {name}.txt" in printed, printed
+        assert (out / f"{name}.txt").exists()
+    assert "확인 필요  01_f2001_count_and_text.txt" in printed  # 픽스처는 선별 3건, 색인 6건이라 불일치
+    assert "retrieve" in (out / "07_langgraph_structure.txt").read_text(encoding="utf-8")
+
+
+def test_evidence_security_and_sources_on_real_repo():
+    from scripts.export_evidence import Context, item_21, item_24
+
+    ctx = Context(PROJECT_ROOT, {})
+    passed, text = item_21(ctx)
+    assert passed, text  # 커밋 대상 파일에 키 문자열이 없다
+    passed, text = item_24(ctx)
+    assert passed and "NOASSERTION" in text
