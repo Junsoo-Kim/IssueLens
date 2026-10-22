@@ -99,7 +99,8 @@ class RAGPipeline:
                 # 앞 시도의 라우팅 결과를 수집 대상 저장소로 쓴다
                 repos = ([repo] if repo else plan.candidate_repos or attempts[-1]["route"]["repos"])[:2]
                 report(config, "캐시 확인 및 외부 이슈 수집 중")
-                queries = collection_queries(plan.search_queries, plan.exact_tokens, self.settings.collection_queries)
+                queries = collection_queries(plan.search_queries, plan.exact_tokens, self.settings.collection_queries,
+                                             question)
                 collection_result = self.collector.collect(question, queries, repos, self.llm)
                 collection = collection_result.as_dict()
                 if not collection_result.available:

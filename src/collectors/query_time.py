@@ -23,7 +23,7 @@ from src.collectors.runner import collect_issue_detail
 from src.preprocessing.build import build_issue_documents, load_raw
 from src.preprocessing.metadata_builder import build_issue_item
 from src.preprocessing.resolution import infer_maintainers, judge_evidence
-from src.preprocessing.tagger import TaggingRules, tag_issue
+from src.preprocessing.tagger import TaggingRules, tag_issue, throw_site_class
 from src.prompts.candidate_selector import select_candidates
 from src.prompts.llm import LLM
 
@@ -42,10 +42,9 @@ TOKEN_QUERIES = 2
 
 
 def token_priority(token: str) -> tuple:
-    """변별력이 높은 토큰을 앞에 둔다. 흔한 예외, 소문자 경로(로거 이름 등), 한 단어 클래스(Template)는 뒤로,
-    나머지는 긴 이름(AspectTemplateEngine, JAXPValidationUtil)부터."""
+    """흔한 예외, 소문자 경로(로거 이름 등), 한 단어 클래스(Template)를 뒤로 미룬다. 나머지는 나온 순서대로 둔다."""
     humps = sum(1 for a, b in zip(token, token[1:]) if a.islower() and b.isupper())
-    return (token.lower() in GENERIC_EXCEPTIONS, not any(c.isupper() for c in token), humps == 0, -len(token))
+    return (token.lower() in GENERIC_EXCEPTIONS, not any(c.isupper() for c in token), humps == 0)
 
 
 def search_token(token: str) -> str:
@@ -55,13 +54,18 @@ def search_token(token: str) -> str:
     return classes[-1] if "." in token and classes else token
 
 
-def collection_queries(search_queries: list[str], exact_tokens: list[str], limit: int = 3) -> list[str]:
+def collection_queries(search_queries: list[str], exact_tokens: list[str], limit: int = 3,
+                       question: str = "") -> list[str]:
     """GitHub 검색은 모든 단어가 들어간 이슈만 돌려줘 긴 문장 검색어는 0건이 되기 쉽다.
     정확 토큰(예외명, 오류 코드, 클래스명)을 하나씩 검색어로 만들어 앞에 둔다. 여러 토큰을 한 검색어에 넣으면
     모두 함께 나오는 이슈만 걸려 원래 이슈 말고는 찾기 어렵다. 매번 같은 검색어라 캐시도 적중한다.
-    버전 번호만으로는 엉뚱한 이슈가 걸리므로 빼고, 흔한 예외는 뒤로 미룬다."""
-    tokens = list(dict.fromkeys(search_token(t) for t in exact_tokens if not VERSION_ONLY.fullmatch(t)))
+    버전 번호만으로는 엉뚱한 이슈가 걸리므로 빼고, 흔한 예외는 뒤로 미룬다.
+    question에 스택 트레이스가 있으면 예외가 난 클래스를 맨 앞에 둔다."""
+    tokens = [search_token(t) for t in exact_tokens if not VERSION_ONLY.fullmatch(t)]
     tokens.sort(key=token_priority)
+    # 질문에 스택 트레이스가 있으면 예외가 난 애플리케이션 클래스를 가장 먼저 검색한다
+    site = throw_site_class(question)
+    tokens = list(dict.fromkeys([site, *tokens] if site else tokens))
     head = [f'"{t}"' for t in tokens[:TOKEN_QUERIES]]
     return list(dict.fromkeys([*head, *search_queries]))[:limit]
 

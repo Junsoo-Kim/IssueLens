@@ -11,15 +11,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable
 
-from src.preprocessing.tagger import EXCEPTION_NAME, VERSION_TOKEN
+from src.preprocessing.tagger import EXCEPTION_NAME, FRAME, RUNTIME_FRAME, VERSION_TOKEN
 
 MAX_LOG_CHARS = 2000
 MAX_FRAMES = 5  # 검색에 넣을 애플리케이션 스택 프레임 수
-FRAME = re.compile(r"^\s*at \S")
-# 언어 런타임·프레임워크 프레임은 어느 오류에나 나와 검색어를 흐린다
-RUNTIME_FRAME = re.compile(r"^\s*at (?:java\.|javax\.|jdk\.|sun\.|com\.sun\.|kotlin\.|kotlinx\.|scala\.|io\.netty\.|"
-                           r"io\.vertx\.|io\.quarkus\.|org\.jboss\.|org\.springframework\.|reactor\.|"
-                           r"org\.apache\.catalina\.|org\.apache\.tomcat\.)")
 JAR_SUFFIX = re.compile(r"\s*~?\[[^\]]*\.jar[^\]]*\]")  # "~[kotlin-stdlib-2.1.10.jar:?]" 같은 라이브러리 버전 표기
 SIMILAR_ISSUES = 3
 ERROR_LINE = re.compile(r"\b(ERROR|FATAL|CRITICAL|Exception|Error|Caused by|failed|Failed|FAILED|panic)\b")

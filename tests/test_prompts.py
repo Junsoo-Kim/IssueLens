@@ -205,15 +205,27 @@ def test_collection_queries_search_each_token_and_defer_generic_exceptions():
 def test_collection_queries_shorten_paths_to_class_names():
     from src.collectors.query_time import collection_queries
 
-    tokens = ["org.xml.sax.SAXException", "JAXPValidationUtil.getSchema", "org.key.sam.common"]
-    assert collection_queries(["q"], tokens) == ['"JAXPValidationUtil"', '"SAXException"', "q"]
+    tokens = ["org.xml.sax.SAXException", "org.key.sam.common", "JAXPValidationUtil.getSchema"]
+    assert collection_queries(["q"], tokens) == ['"JAXPValidationUtil"', '"SAXException"', "q"]  # 로거 이름은 뒤로
 
 
-def test_collection_queries_prefer_distinctive_class_names():
+KEYCLOAK_LOG = """ERROR [org.key.sam.common] Cannot get schema: org.xml.sax.SAXException: FWK005 parse may not be called
+        at java.xml/com.sun.org.apache.xerces.internal.jaxp.validation.Util.toSAXException(Util.java:66)
+        at org.keycloak.saml.processing.core.util.JAXPValidationUtil.getSchema(JAXPValidationUtil.java:155)
+        at com.someproject.keycloak.idp.application.SamlResponseValidationAuthenticator.authenticate(X.java:91)"""
+
+
+def test_collection_queries_search_throw_site_class_first():
     from src.collectors.query_time import collection_queries
+    from src.preprocessing.tagger import throw_site_class
 
+    assert throw_site_class(KEYCLOAK_LOG) == "JAXPValidationUtil"  # java.xml 런타임 프레임은 건너뛴다
+    tokens = ["org.key.sam.common", "SamlResponseValidationAuthenticator.authenticate",
+              "DefaultAuthenticationFlow.processSingleFlowExecutionModel"]
+    assert collection_queries(["q"], tokens, question=KEYCLOAK_LOG)[:2] == [
+        '"JAXPValidationUtil"', '"SamlResponseValidationAuthenticator"']
+    datahub = ("java.lang.NullPointerException: Cannot invoke Template.applyPatch\n"
+               "  at com.linkedin.metadata.aspect.patch.template.AspectTemplateEngine.applyPatch(AspectTemplateEngine.java:86)")
     tokens = ["java.lang.NullPointerException", "com.linkedin.metadata.aspect.patch.template.Template.applyPatch",
-              "com.linkedin.data.template.RecordTemplate", "AspectTemplateEngine.applyPatch", "org.key.sam.common"]
-    assert collection_queries(["q"], tokens)[:2] == ['"AspectTemplateEngine"', '"RecordTemplate"']
-    keycloak = ["org.xml.sax.SAXException", "org.key.sam.common", "JAXPValidationUtil.getSchema"]
-    assert collection_queries(["q"], keycloak)[:2] == ['"JAXPValidationUtil"', '"SAXException"']
+              "com.linkedin.data.template.RecordTemplate"]
+    assert collection_queries(["q"], tokens, question=datahub)[:2] == ['"AspectTemplateEngine"', '"RecordTemplate"']
