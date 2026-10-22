@@ -5,7 +5,7 @@
     git diff main | python -m agent.main --diff - --dry-run
 
 GitHub Action에서는 인자 없이 실행하면 GITHUB_EVENT_PATH의 pull_request 이벤트에서 PR을 읽는다.
-현재 단계(17.12절 A)에서는 변경 파일 수집, 제외 규칙, 상한, 마스킹 결과만 출력한다.
+현재 단계(17.12절 B)까지는 변경 파일 수집·마스킹 결과와 규칙 기반 변경 신호만 출력한다.
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from agent.diff_reader import DiffBundle, fetch_pull_request, parse_unified_diff  # noqa: E402
+from agent.signals import extract_signals, format_signals  # noqa: E402
 from src.collectors.github_client import DEFAULT_API_VERSION, DEFAULT_USER_AGENT, GitHubClient, HttpSettings  # noqa: E402
 from src.config import load_yaml  # noqa: E402
 
@@ -101,7 +102,11 @@ def main(argv: list[str] | None = None, env: dict | None = None) -> int:
 
     settings = load_settings(args.target_root)
     bundle = read_bundle(args, env, settings.get("diff", {}))
-    print(json.dumps(bundle.as_dict(), ensure_ascii=False, indent=2) if args.json else format_bundle(bundle))
+    signals = extract_signals(bundle, args.target_root)
+    if args.json:
+        print(json.dumps({"diff": bundle.as_dict(), "signals": signals.as_dict()}, ensure_ascii=False, indent=2))
+    else:
+        print(format_bundle(bundle) + "\n\n" + format_signals(signals))
     if not args.dry_run:
         print("\n코멘트 게시는 아직 구현 전입니다 (17.12절 단계 F). 지금은 --dry-run과 같게 동작합니다.", file=sys.stderr)
     return 0
