@@ -12,6 +12,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
+from langchain_core.runnables import RunnableConfig
+
 from src.collectors.query_time import QueryTimeCollector, collection_queries
 from src.graph.state import RAGState
 from src.indexing.ids import issue_record_id
@@ -19,11 +21,20 @@ from src.prompts.answer_generator import NO_EVIDENCE_MESSAGE, generate_answer, g
 from src.prompts.evidence_grader import grade_evidence
 from src.prompts.llm import LLM, LLMUnavailable
 from src.prompts.query_extractor import extract_queries
+from src.retrieval.evidence_selector import assess_evidence
 from src.retrieval.hybrid import HybridRetriever, RetrievalResult
+from src.retrieval.query_analyzer import analyze_query
 from src.retrieval.repository_router import issue_id_of_record
 from src.services.citation_validator import check_citations, remove_citations
 
 NEAREST_ISSUES = 3
+
+
+def report(config: RunnableConfig | None, message: str) -> None:
+    """화면의 진행 상태 표시용. ask(progress=...)로 넘긴 콜백이 있을 때만 부른다."""
+    callback = ((config or {}).get("configurable") or {}).get("progress")
+    if callback:
+        callback(message)
 
 
 @dataclass
@@ -36,9 +47,13 @@ class PipelineSettings:
 
 class RAGPipeline:
     def __init__(self, retriever: HybridRetriever, llm: LLM | None, repositories: list[dict],
-                 collector: QueryTimeCollector | None = None, settings: PipelineSettings | None = None):
+                 collector: QueryTimeCollector | None = None, settings: PipelineSettings | None = None,
+                 fast_llm: LLM | None = None):
+        """fast_llm: 검색어 추출·후보 선별처럼 형식이 정해진 짧은 판단에 쓰는 LLM (추론량을 낮춰 지연을 줄인다).
+        근거 판정과 답변 생성은 llm을 쓴다."""
         self.retriever = retriever
         self.llm = llm
+        self.fast_llm = fast_llm or llm
         self.repositories = repositories
         self.collector = collector
         self.settings = settings or PipelineSettings()
@@ -52,25 +67,31 @@ class RAGPipeline:
         title = got["metadatas"][0].get("title", "") if got["metadatas"] else ""
         return {"issue_id": issue_id, "repo": issue_id.rsplit("#", 1)[0], "title": title}
 
-    def _attempt(self, stage: str, search_text: str, result: RetrievalResult, question: str) -> dict:
-        grade = grade_evidence(self.llm, question, result.evidence, result.assessment)
+    def _attempt(self, stage: str, search_text: str, result: RetrievalResult, question: str,
+                 config: RunnableConfig | None = None) -> dict:
+        report(config, "근거 정리 중")
+        # 재작성 검색어나 수집 후 검색도 원래 질문의 정확 토큰(예외명 등)으로 판정한다.
+        # 검색어마다 토큰을 다시 뽑으면 영어 검색어에 예외명이 빠진 시도가 정확 토큰 규칙을 피해 간다
+        assessment = assess_evidence(result.evidence, analyze_query(question, self.repositories).exact_tokens)
+        grade = grade_evidence(self.llm, question, result.evidence, assessment)
         return {
             "stage": stage,
             "search_text": search_text,
             "route": {"repos": result.route.repos, "reason": result.route.reason, "confidence": result.route.confidence},
             "top_issues": [issue_id_of_record(h.id) for h in result.issues[:8]],
             "evidence_count": len(result.evidence),
-            "assessment": result.assessment,
+            "assessment": assessment,
             "grade": grade.as_dict(),
             "_result": result,
         }
 
-    def retrieve(self, state: RAGState) -> dict:
+    def retrieve(self, state: RAGState, config: RunnableConfig = None) -> dict:
         started = time.perf_counter()
         question, repo, selected_id = state["question"], state.get("repo"), state.get("selected_issue_id")
         selected = self._selected_issue(selected_id)
 
-        plan = extract_queries(self.llm, question, self.repositories, selected)
+        report(config, "검색 조건 분석 중")
+        plan = extract_queries(self.fast_llm, question, self.repositories, selected)
         timings = {"query_plan": time.perf_counter() - started}
         english = " ".join([*plan.search_queries, *plan.exact_tokens])
         plan_repo = repo or (plan.candidate_repos[0] if len(plan.candidate_repos) == 1 else None)
@@ -86,8 +107,10 @@ class RAGPipeline:
             elif self.collector is not None:
                 # 앞 시도의 라우팅 결과를 수집 대상 저장소로 쓴다
                 repos = ([repo] if repo else plan.candidate_repos or attempts[-1]["route"]["repos"])[:2]
-                queries = collection_queries(plan.search_queries, plan.exact_tokens, self.settings.collection_queries)
-                collection_result = self.collector.collect(question, queries, repos, self.llm)
+                report(config, "캐시 확인 및 외부 이슈 수집 중")
+                queries = collection_queries(plan.search_queries, plan.exact_tokens, self.settings.collection_queries,
+                                             question)
+                collection_result = self.collector.collect(question, queries, repos, self.fast_llm)
                 collection = collection_result.as_dict()
                 if not collection_result.available:
                     timings["attempt_collect"] = time.perf_counter() - stage_started
@@ -95,8 +118,9 @@ class RAGPipeline:
                 stage, text, stage_repo, extra = "collected", english, plan_repo, collection_result.available
             else:
                 break
+            report(config, f"관련 문서 검색 중 ({len(attempts) + 1}차 시도)")
             result = self.retriever.retrieve(text, repo=stage_repo, selected_issue_id=selected_id, extra_issue_ids=extra)
-            attempts.append(self._attempt(stage, text, result, question))
+            attempts.append(self._attempt(stage, text, result, question, config))
             timings[f"attempt_{stage}"] = time.perf_counter() - stage_started
             if attempts[-1]["grade"]["sufficient"]:
                 break
@@ -139,7 +163,7 @@ class RAGPipeline:
             warnings.append(f"존재하지 않는 근거 번호 {check.invalid}를 답변에서 지웠습니다.")
         return answer, {"cited": check.cited, "invalid": check.invalid}, warnings
 
-    def generate(self, state: RAGState) -> dict:
+    def generate(self, state: RAGState, config: RunnableConfig = None) -> dict:
         started = time.perf_counter()
         question = state["question"]
         evidence = state.get("evidence", [])
@@ -148,12 +172,16 @@ class RAGPipeline:
 
         try:
             if state.get("sufficient") and evidence and self.llm is not None:
+                report(config, "답변 생성 중")
                 answer, check, answer_warnings = self._grounded_answer(question, evidence)
                 warnings.extend(answer_warnings)
                 from_evidence = answer.strip() != NO_EVIDENCE_MESSAGE
                 cited = [e for e in evidence if e.number in check["cited"]]
                 if from_evidence and not cited:
                     warnings.append("답변에 인용된 근거가 없습니다. 내용을 근거로 확인할 수 없습니다.")
+                if not from_evidence:
+                    warnings.append("근거 판정은 통과했지만, 답변 단계에서 근거가 질문의 오류와 직접 맞지 않는다고 보고 "
+                                    "답하지 않았습니다. 아래 사례는 참고만 하세요.")
             elif self.llm is None:
                 warnings.append("LLM API 키가 없어 답변을 생성하지 못했습니다. .env의 OPENAI_API_KEY를 확인하세요.")
             if not from_evidence and state.get("allow_general_answer") and self.llm is not None:

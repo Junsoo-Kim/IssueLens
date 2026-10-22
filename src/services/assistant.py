@@ -5,6 +5,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from src.collectors.cache import RawStore, ResponseCache, read_jsonl
 from src.collectors.github_client import DEFAULT_API_VERSION, DEFAULT_USER_AGENT, GitHubClient, HttpSettings
@@ -28,11 +29,13 @@ class Assistant:
     app_config: dict
 
     def ask(self, question: str, selected_issue_id: str | None = None, repo: str | None = None,
-            allow_general_answer: bool | None = None) -> dict:
+            allow_general_answer: bool | None = None, progress: Callable[[str], None] | None = None) -> dict:
+        """progress: 처리 단계 문구를 받는 콜백 (화면의 진행 상태 표시, F2012)."""
         if allow_general_answer is None:
             allow_general_answer = self.app_config.get("rag", {}).get("allow_general_answer", False)
         return self.graph.invoke({"question": question, "selected_issue_id": selected_issue_id, "repo": repo,
-                                  "allow_general_answer": allow_general_answer})
+                                  "allow_general_answer": allow_general_answer},
+                                 config={"configurable": {"progress": progress}})
 
 
 def _selection_ids(manifest_dir: Path) -> tuple[set[str], set[str]]:
@@ -41,6 +44,11 @@ def _selection_ids(manifest_dir: Path) -> tuple[set[str], set[str]]:
     rows = read_jsonl(path) if path.exists() else []
     return ({r["issue_id"] for r in rows if r["final_split"] == "index"},
             {r["issue_id"] for r in rows if r["final_split"] == "evaluation"})
+
+
+def resolve_paths(root: Path, app_config: dict) -> dict[str, Path]:
+    return {name: Path(value) if Path(value).is_absolute() else root / value
+            for name, value in app_config.get("paths", {}).items()}
 
 
 TRACING_FLAGS = ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2")
@@ -70,8 +78,7 @@ def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubCl
     retrieval_config = load_yaml(root / "configs/retrieval.yaml")
     repo_config_path = root / "configs/repositories.yaml"
     repositories = load_repositories(repo_config_path)
-    paths = {name: Path(value) if Path(value).is_absolute() else root / value
-             for name, value in app_config.get("paths", {}).items()}
+    paths = resolve_paths(root, app_config)
 
     embedding_model = retrieval_config.get("embedding", {}).get("model", "text-embedding-3-small")
     embedder = embedder or LazyOpenAIEmbedder(embedding_model)
@@ -80,6 +87,9 @@ def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubCl
     if llm is None and os.getenv("OPENAI_API_KEY"):
         llm_config = app_config.get("llm", {})
         llm = OpenAIChat(llm_config.get("model", "gpt-5-mini"), llm_config.get("reasoning_effort"))
+        fast_llm = OpenAIChat(llm_config.get("model", "gpt-5-mini"), llm_config.get("fast_reasoning_effort"))
+    else:
+        fast_llm = llm
 
     collection_config = app_config.get("query_time_collection", {})
     if enable_collection is None:
@@ -117,5 +127,5 @@ def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubCl
     settings = PipelineSettings(max_attempts=rag.get("max_attempts", 3), evidence_chars=rag.get("evidence_chars", 1200),
                                 citation_retries=rag.get("citation_retries", 1),
                                 collection_queries=collection_config.get("max_queries", 3))
-    pipeline = RAGPipeline(retriever, llm, repositories, collector, settings)
+    pipeline = RAGPipeline(retriever, llm, repositories, collector, settings, fast_llm)
     return Assistant(pipeline, build_graph(pipeline), retriever, app_config)

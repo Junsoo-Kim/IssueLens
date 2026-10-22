@@ -149,6 +149,26 @@ class HybridRetriever:
             self._warnings.append(f"Dense 검색을 쓰지 못해 BM25 결과만 사용했습니다 ({exc})")
             return []
 
+    def counts(self) -> dict[str, int]:
+        return {"issues": self.issue_collection.count(), "chunks": self.document_collection.count()}
+
+    def list_issues(self, repo: str | None = None) -> list[dict]:
+        """RAG 1 이슈 메타데이터 목록 (화면의 이슈 선택용). 최근 종료 순."""
+        got = self.issue_collection.get(where={"repo": repo} if repo else None, include=["metadatas"])
+        return sorted(got["metadatas"], key=lambda m: m.get("closed_at") or "", reverse=True)
+
+    def issue_metadata(self, issue_id: str) -> dict | None:
+        got = self.issue_collection.get(ids=[issue_record_id(issue_id)], include=["metadatas"])
+        return got["metadatas"][0] if got["metadatas"] else None
+
+    def search_issues(self, text: str, repos: list[str] | None = None) -> tuple[list[dict], list[str]]:
+        """조건 탐색용 RAG 1 Hybrid 검색. ([{id, text, metadata, score}] 순위 순서, 경고)."""
+        self._warnings = []
+        analysis = analyze_query(text, self.repositories)
+        hits, _ = self._search_issues(analysis, repos or self.all_repos, "hybrid")
+        fetched = self._fetch(self.issue_collection, [h.id for h in hits])
+        return [{**fetched[h.id], "score": h.score} for h in hits if h.id in fetched], list(self._warnings)
+
     def refresh_sparse(self) -> None:
         """질문 시점 수집으로 BM25 인덱스 파일이 바뀐 뒤 다시 읽게 한다."""
         self.issue_sparse._indexes.clear()

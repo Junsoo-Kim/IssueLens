@@ -250,3 +250,49 @@ def test_guard_tracing_disables_tracing_without_key(monkeypatch):
     monkeypatch.setenv("LANGSMITH_API_KEY", "key")
     assert guard_tracing() is None  # 키가 있으면 그대로 둔다
     ls_utils.get_env_var.cache_clear()
+
+
+def test_generator_abstaining_after_sufficient_grade_is_explained(rag_root):
+    state = make_assistant(rag_root, FakeLLM(answers=[NO_EVIDENCE_MESSAGE])).ask("TokenVerificationException after upgrade")
+    assert state["sufficient"] and not state["answered_from_evidence"] and state["cited_evidence"] == []
+    assert any("답변 단계에서" in w for w in state["warnings"])
+
+
+def test_run_checks_summarizes_questions_and_evaluation_logs(rag_root, index_dirs, tmp_path, capsys):  # noqa: F811
+    from scripts import run_checks
+    from src.collectors.cache import RawStore
+
+    log = "ERROR TokenVerificationException: invalid token\n    at org.keycloak.TokenVerifier.verify(TokenVerifier.java:1)\n" \
+          "    at org.keycloak.services.Auth.check(Auth.java:2)"
+    RawStore(index_dirs / "raw").save(KC, "issues", str(EVAL_ISSUE), {
+        "number": EVAL_ISSUE, "title": "eval", "body": f"```\n{log}\n```", "html_url": "u"})
+    out = tmp_path / "report.md"
+    code = run_checks.main(["--questions", "2", "--logs", "1", "--no-collect", "--out", str(out)],
+                           root=rag_root, llm=FakeLLM(), embedder=FakeEmbedder())
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert "[질문] sync job fails" in printed and f"[로그] {KC}#{EVAL_ISSUE} (평가용 원본)" in printed
+    assert f"원본 이슈 {KC}#{EVAL_ISSUE}: 결과에 없음 (정상)" in printed
+    assert "== 합계 3건" in printed
+    assert "TokenVerificationException: invalid token" not in printed  # 요약에는 원문을 넣지 않는다
+    assert out.read_text(encoding="utf-8").startswith("# IssueLens 일괄 점검")
+
+
+def test_fast_llm_handles_query_plan_while_main_llm_grades_and_answers(rag_root):
+    main_llm, fast_llm = FakeLLM(), FakeLLM()
+    assistant = make_assistant(rag_root, main_llm)
+    assistant.pipeline.fast_llm = fast_llm
+    state = assistant.ask("TokenVerificationException after upgrade")
+    assert state["answered_from_evidence"]
+    assert fast_llm.calls == ["plan"] and "plan" not in main_llm.calls
+    assert main_llm.calls[:2] == ["grade", "answer"]
+
+
+def test_rewritten_attempt_keeps_question_exact_tokens(rag_root):
+    # 영어 재작성 검색어에 예외명이 없어도, 원래 질문의 예외명이 근거에 없으면 부족으로 본다
+    llm = FakeLLM(relevant_issue=f"{KC}#3", plan={"query_type": "error_log", "candidate_repos": [KC],
+                                                 "search_queries": ["realm export misses client scopes"], "exact_tokens": []})
+    state = make_assistant(rag_root, llm).ask("NoSuchBeanDefinitionException 발생 realm export")
+    assert [a["stage"] for a in state["attempts"]] == ["original", "rewritten"]
+    assert all("정확 토큰" in a["grade"]["reason"] for a in state["attempts"])
+    assert not state["sufficient"]

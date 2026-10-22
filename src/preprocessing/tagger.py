@@ -15,6 +15,20 @@ NO_RESPONSE = re.compile(r"^_?no response_?$", re.IGNORECASE)
 LABEL_NOISE = re.compile(r"[^a-z0-9/:\-_.' ]+")
 EXCEPTION_NAME = re.compile(r"\b[A-Z][A-Za-z0-9_]*(?:Exception|Error)\b")
 STACK_TRACE = re.compile(r"Traceback \(most recent call last\)|^\s+at [\w.$]+\(", re.MULTILINE)
+FRAME = re.compile(r"^\s*at \S")
+# 언어 런타임·프레임워크 프레임은 어느 오류에나 나와 검색어를 흐린다
+RUNTIME_FRAME = re.compile(r"^\s*at (?:java\.|javax\.|jdk\.|sun\.|com\.sun\.|kotlin\.|kotlinx\.|scala\.|io\.netty\.|"
+                           r"io\.vertx\.|io\.quarkus\.|org\.jboss\.|org\.springframework\.|reactor\.|"
+                           r"org\.apache\.catalina\.|org\.apache\.tomcat\.)")
+APP_FRAME = re.compile(r"^\s*at (?:[\w.]+/)?([\w.$]+)\.[\w$<>]+\(", re.MULTILINE)
+
+
+def throw_site_class(text: str) -> str | None:
+    """스택 트레이스에서 런타임 프레임을 뺀 첫 프레임의 클래스 이름 (예외가 난 애플리케이션 위치)."""
+    for match in APP_FRAME.finditer(text):
+        if not RUNTIME_FRAME.match(match.group(0)):
+            return match.group(1).split(".")[-1].split("$")[0]
+    return None
 VERSION_TOKEN = re.compile(r"(?<![\d.])v?\d+\.\d+(?:\.\d+)?(?:[-.](?:rc|beta|alpha)\.?\d*)?(?![\d.])", re.IGNORECASE)
 REPRODUCTION = re.compile(r"steps? to reproduce|how to reproduce|reproduc(e|tion) steps|to reproduce", re.IGNORECASE)
 TITLE_PREFIX = re.compile(r"^\s*\[([^\]]{2,40})\]")

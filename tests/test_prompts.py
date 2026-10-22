@@ -191,3 +191,41 @@ def test_extract_queries_drops_plain_words_from_exact_tokens():
         "query_type": "natural_language", "candidate_repos": [], "search_queries": ["MySQL sync timeout"],
         "exact_tokens": ["timeout", "MySQL", "sync job", "ERR_CONN-42", "OOM"]}))
     assert extract_queries(llm, question, REPOS).exact_tokens == ["MySQL", "ERR_CONN-42", "OOM"]
+
+
+def test_collection_queries_search_each_token_and_defer_generic_exceptions():
+    from src.collectors.query_time import collection_queries
+
+    queries = collection_queries(["patch fails with null template"],
+                                 ["NullPointerException", "AspectTemplateEngine", "institutionalMemory"])
+    assert queries == ['"AspectTemplateEngine"', '"institutionalMemory"', "patch fails with null template"]
+    assert collection_queries(["q"], ["NullPointerException"]) == ['"NullPointerException"', "q"]
+
+
+def test_collection_queries_shorten_paths_to_class_names():
+    from src.collectors.query_time import collection_queries
+
+    tokens = ["org.xml.sax.SAXException", "org.key.sam.common", "JAXPValidationUtil.getSchema"]
+    assert collection_queries(["q"], tokens) == ['"JAXPValidationUtil"', '"SAXException"', "q"]  # 로거 이름은 뒤로
+
+
+KEYCLOAK_LOG = """ERROR [org.key.sam.common] Cannot get schema: org.xml.sax.SAXException: FWK005 parse may not be called
+        at java.xml/com.sun.org.apache.xerces.internal.jaxp.validation.Util.toSAXException(Util.java:66)
+        at org.keycloak.saml.processing.core.util.JAXPValidationUtil.getSchema(JAXPValidationUtil.java:155)
+        at com.someproject.keycloak.idp.application.SamlResponseValidationAuthenticator.authenticate(X.java:91)"""
+
+
+def test_collection_queries_search_throw_site_class_first():
+    from src.collectors.query_time import collection_queries
+    from src.preprocessing.tagger import throw_site_class
+
+    assert throw_site_class(KEYCLOAK_LOG) == "JAXPValidationUtil"  # java.xml 런타임 프레임은 건너뛴다
+    tokens = ["org.key.sam.common", "SamlResponseValidationAuthenticator.authenticate",
+              "DefaultAuthenticationFlow.processSingleFlowExecutionModel"]
+    assert collection_queries(["q"], tokens, question=KEYCLOAK_LOG)[:2] == [
+        '"JAXPValidationUtil"', '"SamlResponseValidationAuthenticator"']
+    datahub = ("java.lang.NullPointerException: Cannot invoke Template.applyPatch\n"
+               "  at com.linkedin.metadata.aspect.patch.template.AspectTemplateEngine.applyPatch(AspectTemplateEngine.java:86)")
+    tokens = ["java.lang.NullPointerException", "com.linkedin.metadata.aspect.patch.template.Template.applyPatch",
+              "com.linkedin.data.template.RecordTemplate"]
+    assert collection_queries(["q"], tokens, question=datahub)[:2] == ['"AspectTemplateEngine"', '"RecordTemplate"']

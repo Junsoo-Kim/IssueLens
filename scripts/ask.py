@@ -53,7 +53,7 @@ def format_state(state: dict, safety_notice: str) -> str:
             "",
             "== 질문 시점 외부 수집 (프롬프트 2 선별)",
             f"  캐시 적중(재수집 안 함): {[h['query'] for h in collection['cache_hits']] or '-'}",
-            f"  GitHub 검색: {[(s['query'], s['results']) for s in collection['searched']] or '-'}",
+            f"  GitHub 검색: {[(s['repo'], s['query'], s['results']) for s in collection['searched']] or '-'}",
             f"  후보 {len(collection['candidates'])}건 → 선택 {selection.get('selected_ids') or '-'} "
             f"/ 탈락 {len(selection.get('rejected_ids', []))}건 ({selection.get('source', '-')})",
             f"  새로 색인한 이슈 {collection['collected'] or '-'} (청크 {collection['indexed_chunks']}개)",
