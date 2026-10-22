@@ -6,8 +6,10 @@
 python scripts/export_evidence.py              # 01~09, 21~24 (02는 재색인이라 몇 분 걸림)
 python scripts/export_evidence.py --only 04 06 # 일부만
 python scripts/run_eval.py                     # 검증 질문 세트 (08·09·11·12 보조 근거)
-streamlit run app.py                           # 10~13 화면 캡처
+python scripts/capture_ui.py                   # 10~13 화면 캡처 자동화 (Streamlit을 띄워 아래 조작을 그대로 수행)
 ```
+
+화면 캡처는 `scripts/capture_ui.py`가 Playwright로 아래 표의 조작을 수행하고 `data/processed/evidence/`에 PNG로 저장한다(답변에 이슈 원문이 보여 커밋 제외). 처음 한 번 `pip install playwright && python -m playwright install chromium`이 필요하다. 13번의 키 없음 화면은 `OPENAI_API_KEY`를 비운 별도 실행으로, 색인 없음 화면은 빈 임시 루트로 띄워 찍으므로 `.env`와 `chroma_db`를 바꾸지 않는다. 손으로 찍으려면 `streamlit run app.py`로 띄워 같은 순서로 조작한다.
 
 ## 명령 출력 항목
 
