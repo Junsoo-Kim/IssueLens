@@ -20,7 +20,7 @@ from src.indexing.ids import issue_record_id
 from src.prompts.answer_generator import NO_EVIDENCE_MESSAGE, generate_answer, generate_general_answer
 from src.prompts.evidence_grader import grade_evidence
 from src.prompts.llm import LLM, LLMUnavailable
-from src.prompts.query_extractor import extract_queries
+from src.prompts.query_extractor import QueryPlan, extract_queries
 from src.retrieval.evidence_selector import assess_evidence
 from src.retrieval.hybrid import HybridRetriever, RetrievalResult
 from src.retrieval.query_analyzer import analyze_query
@@ -68,11 +68,11 @@ class RAGPipeline:
         return {"issue_id": issue_id, "repo": issue_id.rsplit("#", 1)[0], "title": title}
 
     def _attempt(self, stage: str, search_text: str, result: RetrievalResult, question: str,
-                 config: RunnableConfig | None = None) -> dict:
+                 exact_tokens: list[str], config: RunnableConfig | None = None) -> dict:
         report(config, "근거 정리 중")
         # 재작성 검색어나 수집 후 검색도 원래 질문의 정확 토큰(예외명 등)으로 판정한다.
         # 검색어마다 토큰을 다시 뽑으면 영어 검색어에 예외명이 빠진 시도가 정확 토큰 규칙을 피해 간다
-        assessment = assess_evidence(result.evidence, analyze_query(question, self.repositories).exact_tokens)
+        assessment = assess_evidence(result.evidence, exact_tokens)
         grade = grade_evidence(self.llm, question, result.evidence, assessment)
         return {
             "stage": stage,
@@ -92,7 +92,22 @@ class RAGPipeline:
 
         report(config, "검색 조건 분석 중")
         plan = extract_queries(self.fast_llm, question, self.repositories, selected)
-        timings = {"query_plan": time.perf_counter() - started}
+        found = self.search(question, plan, repo, selected_id, config=config)
+        found["timings"] = {"query_plan": time.perf_counter() - started, **found["timings"],
+                            "retrieve_total": time.perf_counter() - started}
+        return found
+
+    def search(self, question: str, plan: QueryPlan, repo: str | None = None, selected_id: str | None = None,
+               exact_tokens: list[str] | None = None, allow_collection: bool = True,
+               config: RunnableConfig = None) -> dict:
+        """검색어 계획(plan)으로 최대 3단계 검색과 근거 판정을 한다. retrieve와 PR 리뷰 에이전트가 함께 쓴다.
+
+        exact_tokens: 근거 판정에 쓸 정확 토큰. 없으면 질문에서 규칙으로 뽑는다.
+        allow_collection: False면 외부 수집(3단계)을 하지 않는다 (에이전트의 PR당 검색 예산 소진 시)."""
+        started = time.perf_counter()
+        if exact_tokens is None:
+            exact_tokens = analyze_query(question, self.repositories).exact_tokens
+        timings: dict[str, float] = {}
         english = " ".join([*plan.search_queries, *plan.exact_tokens])
         plan_repo = repo or (plan.candidate_repos[0] if len(plan.candidate_repos) == 1 else None)
 
@@ -104,7 +119,7 @@ class RAGPipeline:
                 stage, text, stage_repo, extra = stages[index]
                 if stage == "rewritten" and plan.source == "rule":
                     continue  # 프롬프트 1이 규칙 기반으로 대체되면 검색어가 원래 질문과 같아 같은 검색을 반복하게 된다
-            elif self.collector is not None:
+            elif self.collector is not None and allow_collection:
                 # 앞 시도의 라우팅 결과를 수집 대상 저장소로 쓴다
                 repos = ([repo] if repo else plan.candidate_repos or attempts[-1]["route"]["repos"])[:2]
                 report(config, "캐시 확인 및 외부 이슈 수집 중")
@@ -120,7 +135,7 @@ class RAGPipeline:
                 break
             report(config, f"관련 문서 검색 중 ({len(attempts) + 1}차 시도)")
             result = self.retriever.retrieve(text, repo=stage_repo, selected_issue_id=selected_id, extra_issue_ids=extra)
-            attempts.append(self._attempt(stage, text, result, question, config))
+            attempts.append(self._attempt(stage, text, result, question, exact_tokens, config))
             timings[f"attempt_{stage}"] = time.perf_counter() - stage_started
             if attempts[-1]["grade"]["sufficient"]:
                 break
@@ -131,7 +146,7 @@ class RAGPipeline:
         result: RetrievalResult | None = best["_result"] if best else None
         nearest = [{"issue_id": issue_id_of_record(h.id), "url": f"https://github.com/{issue_id_of_record(h.id).replace('#', '/issues/')}"}
                    for h in (result.issues[:NEAREST_ISSUES] if result else [])]
-        timings["retrieve_total"] = time.perf_counter() - started
+        timings["search_total"] = time.perf_counter() - started
         return {
             "query_plan": plan.as_dict(),
             "attempts": [{k: v for k, v in a.items() if k != "_result"} for a in attempts],

@@ -116,7 +116,8 @@ def test_main_reads_pr_from_action_event(tmp_path, make_client, monkeypatch, cap
 def test_main_reads_local_diff(tmp_path, capsys):
     patch = tmp_path / "changes.patch"
     patch.write_text(DIFF, encoding="utf-8")
-    assert main(["--diff", str(patch), "--dry-run", "--json", "--no-pypi", "--target-root", str(tmp_path), "--cache-dir", str(tmp_path)]) == 0
+    assert main(["--diff", str(patch), "--dry-run", "--json", "--no-pypi", "--target-root", str(tmp_path), "--cache-dir", str(tmp_path)],
+                env={}) == 0
     data = json.loads(capsys.readouterr().out)
     assert [f["path"] for f in data["diff"]["files"] if not f["skipped"]] == ["requirements.txt", "app/llm.py"]
     assert data["signals"]["python_project"]
@@ -291,7 +292,7 @@ def test_main_prints_library_mapping(tmp_path, capsys):
     patch = tmp_path / "changes.patch"
     patch.write_text(SIGNAL_DIFF, encoding="utf-8")
     assert main(["--diff", str(patch), "--dry-run", "--target-root", str(tmp_path), "--cache-dir", str(tmp_path)],
-                fetch=lambda url: {"info": {"project_urls": {"Source": "https://github.com/psf/requests"}}}) == 0
+                env={}, fetch=lambda url: {"info": {"project_urls": {"Source": "https://github.com/psf/requests"}}}) == 0
     printed = capsys.readouterr().out
     assert "openai -> openai/openai-python (큐레이션)" in printed
     assert "requests -> psf/requests (PyPI)" in printed
