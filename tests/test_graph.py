@@ -296,3 +296,52 @@ def test_rewritten_attempt_keeps_question_exact_tokens(rag_root):
     assert [a["stage"] for a in state["attempts"]] == ["original", "rewritten"]
     assert all("정확 토큰" in a["grade"]["reason"] for a in state["attempts"])
     assert not state["sufficient"]
+
+
+def test_run_eval_compares_each_question_type(rag_root, index_dirs, tmp_path, capsys):  # noqa: F811
+    from scripts import run_eval
+    from src.collectors.cache import RawStore
+    from tests.test_services import ExploreLLM
+
+    log = "ERROR TokenVerificationException: invalid token\n    at org.keycloak.TokenVerifier.verify(TokenVerifier.java:1)\n" \
+          "    at org.keycloak.services.Auth.check(Auth.java:2)"
+    RawStore(index_dirs / "raw").save(KC, "issues", str(EVAL_ISSUE), {
+        "number": EVAL_ISSUE, "title": "eval", "body": f"```\n{log}\n```", "html_url": "u"})
+    questions = tmp_path / "q.yaml"
+    questions.write_text(yaml.safe_dump({"questions": [
+        {"id": "g1", "type": "grounded", "question": "TokenVerificationException after upgrade",
+         "expect": {"answer": True, "cited_repos": [KC], "cite_any": [f"{KC}#2"]}},
+        {"id": "g2", "type": "grounded", "question": "TokenVerificationException after upgrade",
+         "expect": {"answer": True, "cited_repos": ["airbytehq/airbyte"]}},  # 일부러 틀린 기대
+        {"id": "n1", "type": "no_evidence", "question": "NoSuchBeanDefinitionException 발생", "expect": {"answer": False}},
+        {"id": "l1", "type": "error_log", "log_from": f"{KC}#{EVAL_ISSUE}", "expect": {"answer": "any"}},
+        {"id": "l2", "type": "error_log", "log_from": f"{KC}#404", "expect": {"answer": "any"}},
+        {"id": "s1", "type": "selected_issue", "issue": f"{KC}#2", "question": "이 문제 어떻게 해결했어?",
+         "expect": {"answer": True, "cite_issue": True}},
+        {"id": "c1", "type": "condition", "question": "keycloak 26 업그레이드 후 토큰 검증 실패 버그 찾아줘",
+         "expect": {"issues_any": [f"{KC}#2"], "result_repos": [KC], "result_types": ["bug"]}},
+    ]}, allow_unicode=True), encoding="utf-8")
+    llm = ExploreLLM({"repos": [KC], "issue_types": ["bug"], "versions": ["26"], "categories": [],
+                      "symptom": "login fails token verification after upgrade"},
+                     matches=[{"issue_id": f"{KC}#2", "reason": "토큰 검증 실패"}])
+    code = run_eval.main(["--questions", str(questions), "--no-collect", "--out", str(tmp_path / "r.md")],
+                         root=rag_root, llm=llm, embedder=FakeEmbedder())
+    printed = capsys.readouterr().out
+    assert code == 1  # g2가 실패
+    for passed in ("PASS g1", "PASS n1", "PASS l1", "PASS s1", "PASS c1"):
+        assert passed in printed, printed
+    assert "FAIL g2" in printed and f"다른 저장소 근거 인용 ['{KC}#2']" in printed
+    assert "SKIP l2" in printed and "원본 로그 없음" in printed
+    assert "== 7건: PASS 5 / FAIL 1 / SKIP 1" in printed
+
+
+def test_eval_question_set_is_well_formed():
+    data = yaml.safe_load((PROJECT_ROOT / "data/eval/questions.yaml").read_text(encoding="utf-8"))["questions"]
+    ids = [q["id"] for q in data]
+    assert len(ids) == len(set(ids)) and 15 <= len(ids) <= 20  # 기획서 11.2절
+    required = {"grounded": "question", "no_evidence": "question", "condition": "question",
+                "selected_issue": "issue", "error_log": "log_from"}
+    for q in data:
+        assert q.get(required[q["type"]]), q["id"]
+        assert re.fullmatch(r"[\w.-]+/[\w.-]+#\d+", q.get("issue") or q.get("log_from") or "a/b#1"), q["id"]
+    assert {q["type"] for q in data} == set(required)
