@@ -49,7 +49,7 @@ MIN_BODY_CHARS = 100
 # 챗봇 판정(judge_evidence)의 단어 신호만으로는 사용법을 길게 설명한 답이 빠진다 (langchain 진단 결과)
 MIN_ANSWER_CHARS = 200
 LINK = re.compile(r"https?://")
-DETAIL_ATTEMPTS = 2  # 목표 건수의 몇 배까지 상세 수집을 시도할지 (판정에서 빠지는 이슈 대비)
+DETAIL_ATTEMPTS = 3  # 목표 건수의 몇 배까지 상세 수집을 시도할지 (판정 통과율이 낮은 저장소 대비, langchain 약 50%)
 DISCUSSION_QUERY = """
 query($owner: String!, $name: String!, $first: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
@@ -137,8 +137,9 @@ def resolution_kind(shallow: dict, tag: dict, evidence: dict) -> str | None:
 def candidate_order(record: dict) -> tuple:
     """상세 수집 순서. 댓글이 오간 이슈를 먼저 본다.
 
-    최근 종료 순만 쓰면 봇이 일괄 종료한 이슈(댓글 1개)가 앞에 몰려 예산을 다 쓴다 (langchain 진단 결과)."""
-    return ((record.get("comments") or 0) >= 2, record.get("state_reason") == "completed", record.get("closed_at") or "")
+    최근 종료 순만 쓰면 봇이 일괄 종료한 이슈(댓글 1개)가 앞에 몰려 예산을 다 쓴다 (langchain 진단 결과).
+    completed를 앞세우면 작성자가 스스로 닫은 이슈가 몰리고 유지보수자가 설명한 not_planned가 밀려 쓰지 않는다."""
+    return (record.get("comments") or 0) >= 2, record.get("closed_at") or ""
 
 
 # ---------------------------------------------------------------- Discussions
