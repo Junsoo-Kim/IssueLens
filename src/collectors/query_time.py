@@ -41,12 +41,19 @@ GENERIC_EXCEPTIONS = {"exception", "error", "runtimeexception", "nullpointerexce
 TOKEN_QUERIES = 2
 
 
+def search_token(token: str) -> str:
+    """패키지·메서드 경로는 클래스 이름만 남긴다. 이슈에는 전체 경로보다 클래스 이름이 더 자주 나온다.
+    예: com.linkedin...AspectTemplateEngine.applyPatch -> AspectTemplateEngine"""
+    classes = [part for part in token.split(".") if part[:1].isupper()]
+    return classes[-1] if "." in token and classes else token
+
+
 def collection_queries(search_queries: list[str], exact_tokens: list[str], limit: int = 3) -> list[str]:
     """GitHub 검색은 모든 단어가 들어간 이슈만 돌려줘 긴 문장 검색어는 0건이 되기 쉽다.
     정확 토큰(예외명, 오류 코드, 클래스명)을 하나씩 검색어로 만들어 앞에 둔다. 여러 토큰을 한 검색어에 넣으면
     모두 함께 나오는 이슈만 걸려 원래 이슈 말고는 찾기 어렵다. 매번 같은 검색어라 캐시도 적중한다.
     버전 번호만으로는 엉뚱한 이슈가 걸리므로 빼고, 흔한 예외는 뒤로 미룬다."""
-    tokens = [t for t in exact_tokens if not VERSION_ONLY.fullmatch(t)]
+    tokens = list(dict.fromkeys(search_token(t) for t in exact_tokens if not VERSION_ONLY.fullmatch(t)))
     tokens.sort(key=lambda t: t.lower() in GENERIC_EXCEPTIONS)
     head = [f'"{t}"' for t in tokens[:TOKEN_QUERIES]]
     return list(dict.fromkeys([*head, *search_queries]))[:limit]

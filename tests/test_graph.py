@@ -250,3 +250,9 @@ def test_guard_tracing_disables_tracing_without_key(monkeypatch):
     monkeypatch.setenv("LANGSMITH_API_KEY", "key")
     assert guard_tracing() is None  # 키가 있으면 그대로 둔다
     ls_utils.get_env_var.cache_clear()
+
+
+def test_generator_abstaining_after_sufficient_grade_is_explained(rag_root):
+    state = make_assistant(rag_root, FakeLLM(answers=[NO_EVIDENCE_MESSAGE])).ask("TokenVerificationException after upgrade")
+    assert state["sufficient"] and not state["answered_from_evidence"] and state["cited_evidence"] == []
+    assert any("답변 단계에서" in w for w in state["warnings"])

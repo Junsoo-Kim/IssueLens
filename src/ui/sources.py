@@ -89,7 +89,8 @@ def render_answer(state: dict, safety_notice: str) -> None:
         for e in cited:
             evidence_card(e)
     elif not state.get("answered_from_evidence"):
-        st.info(NO_RESULT)
+        if not state.get("sufficient"):  # 판정은 통과했는데 답변 단계에서 거부한 경우는 경고 문구로 따로 알린다
+            st.info(NO_RESULT)
         nearest = state.get("nearest_issues") or []
         if nearest:
             st.caption("가장 가까운 사례 (관련도 낮음, 근거로 쓰지 않음)")

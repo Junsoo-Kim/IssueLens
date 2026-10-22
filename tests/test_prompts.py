@@ -200,3 +200,10 @@ def test_collection_queries_search_each_token_and_defer_generic_exceptions():
                                  ["NullPointerException", "AspectTemplateEngine", "institutionalMemory"])
     assert queries == ['"AspectTemplateEngine"', '"institutionalMemory"', "patch fails with null template"]
     assert collection_queries(["q"], ["NullPointerException"]) == ['"NullPointerException"', "q"]
+
+
+def test_collection_queries_shorten_paths_to_class_names():
+    from src.collectors.query_time import collection_queries
+
+    tokens = ["org.xml.sax.SAXException", "JAXPValidationUtil.getSchema", "org.key.sam.common"]
+    assert collection_queries(["q"], tokens) == ['"SAXException"', '"JAXPValidationUtil"', "q"]

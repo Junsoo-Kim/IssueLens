@@ -169,6 +169,9 @@ class RAGPipeline:
                 cited = [e for e in evidence if e.number in check["cited"]]
                 if from_evidence and not cited:
                     warnings.append("답변에 인용된 근거가 없습니다. 내용을 근거로 확인할 수 없습니다.")
+                if not from_evidence:
+                    warnings.append("근거 판정은 통과했지만, 답변 단계에서 근거가 질문의 오류와 직접 맞지 않는다고 보고 "
+                                    "답하지 않았습니다. 아래 사례는 참고만 하세요.")
             elif self.llm is None:
                 warnings.append("LLM API 키가 없어 답변을 생성하지 못했습니다. .env의 OPENAI_API_KEY를 확인하세요.")
             if not from_evidence and state.get("allow_general_answer") and self.llm is not None:
