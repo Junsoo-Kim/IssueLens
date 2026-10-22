@@ -1,0 +1,301 @@
+{
+  "checked_at": "2026-10-22T05:15:27+00:00",
+  "since": "2025-10-22",
+  "libraries": [
+    {
+      "repo": "openai/openai-python",
+      "category": "llm_sdk",
+      "packages": {
+        "openai": "openai/openai-python"
+      },
+      "problems": [],
+      "full_name": "openai/openai-python",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 1268,
+      "closed_issues_last_year": 258
+    },
+    {
+      "repo": "anthropics/anthropic-sdk-python",
+      "category": "llm_sdk",
+      "packages": {
+        "anthropic": "anthropics/anthropic-sdk-python"
+      },
+      "problems": [],
+      "full_name": "anthropics/anthropic-sdk-python",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 452,
+      "closed_issues_last_year": 227
+    },
+    {
+      "repo": "BerriAI/litellm",
+      "category": "llm_sdk",
+      "packages": {
+        "litellm": "BerriAI/litellm"
+      },
+      "problems": [],
+      "full_name": "BerriAI/litellm",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "NOASSERTION",
+      "closed_issues": 11838,
+      "closed_issues_last_year": 5522
+    },
+    {
+      "repo": "ollama/ollama-python",
+      "category": "llm_sdk",
+      "packages": {
+        "ollama": "ollama/ollama-python"
+      },
+      "problems": [
+        "최근 1년 종료 이슈 26건 (기준 100)"
+      ],
+      "full_name": "ollama/ollama-python",
+      "archived": false,
+      "has_discussions": false,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 232,
+      "closed_issues_last_year": 26
+    },
+    {
+      "repo": "langchain-ai/langchain",
+      "category": "framework",
+      "packages": {
+        "langchain": "langchain-ai/langchain",
+        "langchain-core": "langchain-ai/langchain",
+        "langchain-text-splitters": "langchain-ai/langchain",
+        "langchain-openai": "langchain-ai/langchain",
+        "langchain-anthropic": "langchain-ai/langchain",
+        "langchain-ollama": "langchain-ai/langchain",
+        "langchain-huggingface": "langchain-ai/langchain",
+        "langchain-chroma": "langchain-ai/langchain",
+        "langchain-qdrant": "langchain-ai/langchain"
+      },
+      "problems": [],
+      "full_name": "langchain-ai/langchain",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 9986,
+      "closed_issues_last_year": 1424
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "category": "framework",
+      "packages": {
+        "langgraph": "langchain-ai/langgraph",
+        "langgraph-checkpoint": "langchain-ai/langgraph",
+        "langgraph-prebuilt": "langchain-ai/langgraph",
+        "langgraph-sdk": "langchain-ai/langgraph"
+      },
+      "problems": [],
+      "full_name": "langchain-ai/langgraph",
+      "archived": false,
+      "has_discussions": false,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 1334,
+      "closed_issues_last_year": 460
+    },
+    {
+      "repo": "run-llama/llama_index",
+      "category": "framework",
+      "packages": {
+        "llama-index": "run-llama/llama_index",
+        "llama-index-core": "run-llama/llama_index"
+      },
+      "problems": [],
+      "full_name": "run-llama/llama_index",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 7106,
+      "closed_issues_last_year": 592
+    },
+    {
+      "repo": "microsoft/autogen",
+      "category": "framework",
+      "packages": {
+        "autogen-agentchat": null,
+        "autogen-core": null,
+        "autogen-ext": null
+      },
+      "problems": [
+        "최근 1년 종료 이슈 43건 (기준 100)"
+      ],
+      "full_name": "microsoft/autogen",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "CC-BY-4.0",
+      "closed_issues": 2529,
+      "closed_issues_last_year": 43
+    },
+    {
+      "repo": "crewAIInc/crewAI",
+      "category": "framework",
+      "packages": {
+        "crewai": "crewAIInc/crewAI"
+      },
+      "problems": [],
+      "full_name": "crewAIInc/crewAI",
+      "archived": false,
+      "has_discussions": false,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 2244,
+      "closed_issues_last_year": 728
+    },
+    {
+      "repo": "stanfordnlp/dspy",
+      "category": "framework",
+      "packages": {
+        "dspy": "stanfordnlp/dspy",
+        "dspy-ai": "stanfordnlp/dsp"
+      },
+      "problems": [
+        "dspy-ai의 저장소가 다름: stanfordnlp/dsp"
+      ],
+      "full_name": "stanfordnlp/dspy",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 1374,
+      "closed_issues_last_year": 228
+    },
+    {
+      "repo": "huggingface/transformers",
+      "category": "model",
+      "packages": {
+        "transformers": "huggingface/transformers"
+      },
+      "problems": [],
+      "full_name": "huggingface/transformers",
+      "archived": false,
+      "has_discussions": false,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 19288,
+      "closed_issues_last_year": 2305
+    },
+    {
+      "repo": "huggingface/huggingface_hub",
+      "category": "model",
+      "packages": {
+        "huggingface-hub": "huggingface/huggingface_hub"
+      },
+      "problems": [],
+      "full_name": "huggingface/huggingface_hub",
+      "archived": false,
+      "has_discussions": false,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 1641,
+      "closed_issues_last_year": 473
+    },
+    {
+      "repo": "vllm-project/vllm",
+      "category": "model",
+      "packages": {
+        "vllm": "vllm-project/vllm"
+      },
+      "problems": [],
+      "full_name": "vllm-project/vllm",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 16524,
+      "closed_issues_last_year": 6945
+    },
+    {
+      "repo": "chroma-core/chroma",
+      "category": "vector_db",
+      "packages": {
+        "chromadb": "chroma-core/chroma"
+      },
+      "problems": [
+        "최근 1년 종료 이슈 97건 (기준 100)"
+      ],
+      "full_name": "chroma-core/chroma",
+      "archived": false,
+      "has_discussions": false,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 1352,
+      "closed_issues_last_year": 97
+    },
+    {
+      "repo": "qdrant/qdrant-client",
+      "category": "vector_db",
+      "packages": {
+        "qdrant-client": "qdrant/qdrant-client"
+      },
+      "problems": [
+        "최근 1년 종료 이슈 94건 (기준 100)"
+      ],
+      "full_name": "qdrant/qdrant-client",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 438,
+      "closed_issues_last_year": 94
+    },
+    {
+      "repo": "pydantic/pydantic",
+      "category": "core",
+      "packages": {
+        "pydantic": "pydantic/pydantic"
+      },
+      "problems": [],
+      "full_name": "pydantic/pydantic",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 5244,
+      "closed_issues_last_year": 345
+    },
+    {
+      "repo": "fastapi/fastapi",
+      "category": "core",
+      "packages": {
+        "fastapi": "fastapi/fastapi"
+      },
+      "problems": [],
+      "full_name": "fastapi/fastapi",
+      "archived": false,
+      "has_discussions": true,
+      "has_issues": true,
+      "license": "MIT",
+      "closed_issues": 3554,
+      "closed_issues_last_year": 129
+    },
+    {
+      "repo": "streamlit/streamlit",
+      "category": "core",
+      "packages": {
+        "streamlit": "streamlit/streamlit"
+      },
+      "problems": [],
+      "full_name": "streamlit/streamlit",
+      "archived": false,
+      "has_discussions": false,
+      "has_issues": true,
+      "license": "Apache-2.0",
+      "closed_issues": 5180,
+      "closed_issues_last_year": 786
+    }
+  ]
+}
