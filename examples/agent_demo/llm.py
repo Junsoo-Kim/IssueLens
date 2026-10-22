@@ -6,5 +6,9 @@ def summarize(text: str) -> str:
     response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": f"Summarize: {text}"}],
+        request_timeout=5,
     )
-    return response["choices"][0]["message"]["content"]
+    try:
+        return response["choices"][0]["message"]["content"]
+    except Exception:
+        return ""
