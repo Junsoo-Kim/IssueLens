@@ -10,3 +10,8 @@ review:
   max_general_findings: 5    # 일반 코드 리뷰 지적 수
   general_review: true
   search_budget: 20          # PR당 GitHub 검색 호출 상한
+
+corpus:                      # A 방식: Action에서 대상 레포가 쓰는 큐레이션 라이브러리만 구축 (--build-corpus)
+  max_new_libraries: 3       # 한 번 실행에서 새로 구축하는 라이브러리 수. 남은 것은 다음 실행에서 이어서 구축
+  request_budget: 250        # 라이브러리당 GitHub 요청 상한 (3개 x 250 = 실행당 약 750회)
+  refresh_days: 7            # 지나면 마지막 구축 이후 종료된 이슈만 더한다

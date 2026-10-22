@@ -42,7 +42,8 @@ class FakeResponse:
 
 
 class FakeSession:
-    """URL(경로 또는 전체 URL)별로 준비한 응답을 순서대로 돌려준다. 마지막 응답은 반복된다."""
+    """URL(경로 또는 전체 URL)별로 준비한 응답을 순서대로 돌려준다. 마지막 응답은 반복된다.
+    쓰기 요청은 "POST /repos/..."처럼 메서드를 앞에 붙인 키로 준비한다."""
 
     def __init__(self, routes: dict):
         self.routes = {self._full(url): list(responses) for url, responses in routes.items()}
@@ -50,7 +51,9 @@ class FakeSession:
 
     @staticmethod
     def _full(url: str) -> str:
-        return url if url.startswith("http") else API_BASE_URL + url
+        method, _, path = url.rpartition(" ")
+        full = path if path.startswith("http") else API_BASE_URL + path
+        return f"{method} {full}" if method else full
 
     def get(self, url, params=None, headers=None, timeout=None):
         self.calls.append({"url": url, "params": params, "headers": headers, "timeout": timeout})
@@ -61,6 +64,20 @@ class FakeSession:
         if isinstance(item, Exception):
             raise item
         return item
+
+    def request(self, method, url, json=None, headers=None, timeout=None):
+        self.calls.append({"method": method, "url": url, "json": json, "headers": headers, "timeout": timeout})
+        key = f"{method} {url}"
+        if key not in self.routes:
+            raise AssertionError(f"예상하지 않은 요청: {key}")
+        queue = self.routes[key]
+        item = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    def writes(self) -> list[tuple[str, str, dict]]:
+        return [(c["method"], c["url"].removeprefix(API_BASE_URL), c["json"]) for c in self.calls if "method" in c]
 
     def paths(self) -> list[str]:
         return [call["url"].removeprefix(API_BASE_URL) for call in self.calls]

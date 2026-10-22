@@ -1,0 +1,31 @@
+# 대상 레포에 .github/workflows/issuelens.yml로 복사해 쓴다 (기획서 17.9절, 17.10절).
+# - pull_request 이벤트만 쓴다. pull_request_target은 포크 코드에 secrets를 노출할 수 있어 쓰지 않는다
+# - 포크에서 온 PR은 건너뛴다 (secrets와 쓰기 권한이 없음)
+# - 필요한 권한은 contents: read, pull-requests: write 두 가지뿐이다
+# - secrets에 OPENAI_API_KEY(필수), OPENAI_BASE_URL(선택)을 넣는다
+# - 리뷰 설정은 .github/issuelens.yml로 바꿀 수 있다 (예: exclude_paths, max_general_findings, general_review)
+name: IssueLens review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: issuelens-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Junsoo-Kim/IssueLens@master
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-base-url: ${{ secrets.OPENAI_BASE_URL }}

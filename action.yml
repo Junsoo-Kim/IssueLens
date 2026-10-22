@@ -1,0 +1,49 @@
+# IssueLens PR 선제 리뷰 에이전트 (기획서 17.10절)
+# 대상 레포의 워크플로 예시: docs/issuelens_review_workflow.yml
+name: IssueLens PR Review
+description: Python AI·LLM 프로젝트의 PR을 라이브러리 저장소의 해결된 이슈를 근거로 리뷰하고 코멘트 하나로 남긴다.
+inputs:
+  openai-api-key:
+    description: LLM·임베딩 API 키 (대상 레포의 secrets)
+    required: true
+  openai-base-url:
+    description: OpenAI 호환 API 주소 (비우면 OpenAI 기본 주소)
+    required: false
+    default: ""
+  github-token:
+    description: PR 읽기와 코멘트 게시용 토큰 (권한 contents read, pull-requests write)
+    required: false
+    default: ${{ github.token }}
+  dry-run:
+    description: "true면 코멘트를 게시하지 않고 로그로만 출력한다"
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: pip
+        cache-dependency-path: ${{ github.action_path }}/requirements.txt
+    # 라이브러리 코퍼스(A 방식)를 실행 사이에 이어 쓴다. 원문은 이 레포의 Action 캐시 안에만 둔다
+    - uses: actions/cache@v4
+      with:
+        path: ~/.issuelens
+        key: issuelens-corpus-${{ runner.os }}-${{ github.run_id }}
+        restore-keys: issuelens-corpus-${{ runner.os }}-
+    - name: Install
+      shell: bash
+      run: python -m pip install --quiet -r "$GITHUB_ACTION_PATH/requirements.txt"
+    - name: Review
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OPENAI_BASE_URL: ${{ inputs.openai-base-url }}
+        ISSUELENS_DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        args=(--build-corpus --index "$HOME/.issuelens/agent_index" --cache-dir "$HOME/.issuelens/cache"
+              --target-root "$GITHUB_WORKSPACE")
+        if [ "$ISSUELENS_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+        python "$GITHUB_ACTION_PATH/agent/main.py" "${args[@]}"
