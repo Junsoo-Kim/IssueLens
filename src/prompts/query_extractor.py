@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 
 from src.prompts.llm import LLM, LLMUnavailable, parse_json_object
@@ -14,6 +15,8 @@ PROMPT_VERSION = "query_extractor/1"
 MAX_QUERIES = 3
 MAX_QUERY_CHARS = 120
 MAX_TOKENS = 8
+# 정확 토큰은 한 단어이면서 숫자·기호·대소문자 섞임(camelCase)·대문자 약어 중 하나가 있어야 한다
+TECHNICAL_TOKEN = re.compile(r"[\d._:/\\$#-]|[a-z][A-Z]|^[A-Z]{2,}$")
 
 SYSTEM = """당신은 오픈소스 서비스의 장애를 분석하는 소프트웨어 장애 분석가입니다.
 사용자 질문(한국어일 수 있음)과 선택된 이슈를 읽고, GitHub 이슈를 검색할 영어 검색어를 만듭니다.
@@ -104,7 +107,9 @@ def extract_queries(llm: LLM | None, question: str, repositories: list[dict],
     if selected_issue and selected_issue.get("title") and selected_issue["title"][:MAX_QUERY_CHARS] not in queries:
         queries = [selected_issue["title"][:MAX_QUERY_CHARS], *queries][:MAX_QUERIES]
     # 정확 토큰은 질문에 실제로 있는 것만 남겨 지어낸 토큰을 막는다
-    tokens = [t for t in _clean_list(data.get("exact_tokens"), MAX_TOKENS, 200) if t.lower() in question.lower()]
+    # 'timeout', 'sync job' 같은 일반 단어는 버린다. 정확 토큰은 근거 판정과 GitHub 검색어에 그대로 쓰인다
+    tokens = [t for t in _clean_list(data.get("exact_tokens"), MAX_TOKENS, 200)
+              if t.lower() in question.lower() and " " not in t and TECHNICAL_TOKEN.search(t)]
     known_lower = {r.lower(): r for r in known}
     repos = [known_lower[r.lower()] for r in _clean_list(data.get("candidate_repos"), 2, 200) if r.lower() in known_lower]
     query_type = data.get("query_type") if data.get("query_type") in QUERY_TYPES else analyze_query(

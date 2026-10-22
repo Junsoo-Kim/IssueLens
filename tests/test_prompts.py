@@ -183,3 +183,11 @@ def test_openai_chat_retries_without_unsupported_reasoning_effort(monkeypatch):
     monkeypatch.setattr(failing, "_build", lambda: FakeClient("always"))
     with pytest.raises(LLMUnavailable):
         failing("s", "u")
+
+
+def test_extract_queries_drops_plain_words_from_exact_tokens():
+    question = "sync job fails with timeout on large MySQL tables (ERR_CONN-42, OOM)"
+    llm = llm_returning(json.dumps({
+        "query_type": "natural_language", "candidate_repos": [], "search_queries": ["MySQL sync timeout"],
+        "exact_tokens": ["timeout", "MySQL", "sync job", "ERR_CONN-42", "OOM"]}))
+    assert extract_queries(llm, question, REPOS).exact_tokens == ["MySQL", "ERR_CONN-42", "OOM"]
