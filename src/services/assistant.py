@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,8 +43,29 @@ def _selection_ids(manifest_dir: Path) -> tuple[set[str], set[str]]:
             {r["issue_id"] for r in rows if r["final_split"] == "evaluation"})
 
 
+TRACING_FLAGS = ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2")
+
+
+def guard_tracing() -> str | None:
+    """추적이 켜져 있는데 API 키가 없으면 끈다. 401 오류가 반복 출력되고 전송이 계속 시도되는 것을 막는다."""
+    enabled = [f for f in TRACING_FLAGS if os.getenv(f, "").strip().lower() == "true"]
+    if enabled and not (os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY")):
+        for flag in enabled:
+            os.environ[flag] = "false"
+        try:  # LangSmith는 환경 변수 조회를 캐시하므로 이미 읽었더라도 다시 읽게 한다
+            from langsmith.utils import get_env_var
+            get_env_var.cache_clear()
+        except (ImportError, AttributeError):
+            pass
+        return "LANGSMITH_TRACING이 켜져 있지만 LANGSMITH_API_KEY가 없어 추적을 끄고 실행합니다."
+    return None
+
+
 def build_assistant(root: Path, llm=None, embedder=None, github_client: GitHubClient | None = None,
                     enable_collection: bool | None = None) -> Assistant:
+    notice = guard_tracing()
+    if notice:
+        print(f"주의: {notice}", file=sys.stderr)
     app_config = load_yaml(root / "configs/app.yaml")
     retrieval_config = load_yaml(root / "configs/retrieval.yaml")
     repo_config_path = root / "configs/repositories.yaml"

@@ -230,3 +230,23 @@ def test_dense_failure_warning_reaches_answer(rag_root):
     state = assistant.ask("TokenVerificationException after upgrade")
     assert state["answered_from_evidence"]
     assert any("BM25 결과만" in w for w in state["warnings"])
+
+
+def test_guard_tracing_disables_tracing_without_key(monkeypatch):
+    import langsmith.utils as ls_utils
+
+    from src.services.assistant import guard_tracing
+
+    monkeypatch.setenv("LANGSMITH_TRACING", "true")
+    monkeypatch.delenv("LANGCHAIN_TRACING_V2", raising=False)  # 공용 픽스처의 false가 먼저 읽히지 않게
+    monkeypatch.delenv("LANGSMITH_API_KEY", raising=False)
+    monkeypatch.delenv("LANGCHAIN_API_KEY", raising=False)
+    ls_utils.get_env_var.cache_clear()
+    assert ls_utils.tracing_is_enabled()  # 가드 전에 이미 읽어 캐시된 경우
+    assert "추적을 끄고" in guard_tracing()
+    assert not ls_utils.tracing_is_enabled()
+
+    monkeypatch.setenv("LANGSMITH_TRACING", "true")
+    monkeypatch.setenv("LANGSMITH_API_KEY", "key")
+    assert guard_tracing() is None  # 키가 있으면 그대로 둔다
+    ls_utils.get_env_var.cache_clear()
