@@ -1,0 +1,12 @@
+# PR 선제 리뷰 에이전트 기본 설정 (기획서 17.10절). 대상 레포의 .github/issuelens.yml이 있으면 그 값이 우선한다.
+
+diff:
+  max_files: 30              # 리뷰할 최대 파일 수. 넘으면 앞부분만 리뷰하고 코멘트에 밝힌다
+  max_changed_lines: 1500    # 리뷰할 최대 변경 줄 수 (추가 + 삭제)
+  exclude_paths: []          # glob, 예: ["docs/**", "tests/fixtures/**"]
+
+review:
+  max_rag_findings: 5        # 근거 검색 대상 후보 수
+  max_general_findings: 5    # 일반 코드 리뷰 지적 수
+  general_review: true
+  search_budget: 20          # PR당 GitHub 검색 호출 상한

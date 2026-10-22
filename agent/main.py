@@ -1,0 +1,111 @@
+"""PR 선제 리뷰 에이전트 진입점 (기획서 17.10절).
+
+    python -m agent.main --pr owner/repo#123 --dry-run      # PR 변경 파일을 읽어 리뷰 입력을 출력
+    python -m agent.main --diff changes.patch --dry-run     # 로컬 git diff 출력으로
+    git diff main | python -m agent.main --diff - --dry-run
+
+GitHub Action에서는 인자 없이 실행하면 GITHUB_EVENT_PATH의 pull_request 이벤트에서 PR을 읽는다.
+현재 단계(17.12절 A)에서는 변경 파일 수집, 제외 규칙, 상한, 마스킹 결과만 출력한다.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from agent.diff_reader import DiffBundle, fetch_pull_request, parse_unified_diff  # noqa: E402
+from src.collectors.github_client import DEFAULT_API_VERSION, DEFAULT_USER_AGENT, GitHubClient, HttpSettings  # noqa: E402
+from src.config import load_yaml  # noqa: E402
+
+PR_REF = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
+TARGET_CONFIG = ".github/issuelens.yml"
+
+
+def load_settings(target_root: Path | None = None) -> dict:
+    """기본 설정에 대상 레포의 .github/issuelens.yml을 덮어쓴다 (최상위 키 단위)."""
+    settings = load_yaml(ROOT / "configs/agent.yaml")
+    target = (target_root or Path.cwd()) / TARGET_CONFIG
+    if target.exists():
+        override = load_yaml(target)
+        for section in ("diff", "review"):
+            settings.setdefault(section, {}).update({k: v for k, v in override.items() if k in settings.get(section, {})})
+    return settings
+
+
+def pr_from_event(env: dict) -> tuple[str, int] | None:
+    """Action의 pull_request 이벤트에서 (저장소, PR 번호)."""
+    path, repo = env.get("GITHUB_EVENT_PATH"), env.get("GITHUB_REPOSITORY")
+    if not path or not repo or not Path(path).exists():
+        return None
+    with open(path, encoding="utf-8") as f:
+        event = json.load(f)
+    number = (event.get("pull_request") or {}).get("number")
+    return (repo, int(number)) if number else None
+
+
+def github_client(env: dict) -> GitHubClient:
+    return GitHubClient(token=env.get("GITHUB_TOKEN") or None,
+                        api_version=env.get("GITHUB_API_VERSION") or DEFAULT_API_VERSION,
+                        user_agent=env.get("GITHUB_USER_AGENT") or DEFAULT_USER_AGENT,
+                        settings=HttpSettings.from_dict(load_yaml(ROOT / "configs/app.yaml").get("http")))
+
+
+def format_bundle(bundle: DiffBundle) -> str:
+    lines = [f"== 변경 파일 ({bundle.source}{', ' + bundle.head_sha[:7] if bundle.head_sha else ''})",
+             f"리뷰 {len(bundle.reviewed)}개 / 건너뜀 {len(bundle.skipped)}개"
+             + (" / 상한 초과로 일부만 리뷰" if bundle.truncated else "")]
+    for change in bundle.reviewed:
+        lines.append(f"  {change.status:8} {change.path} (+{change.additions} -{change.deletions}, hunk {len(change.hunks)}개)")
+    for change in bundle.skipped:
+        lines.append(f"  건너뜀   {change.path} ({change.skipped})")
+    masked = ", ".join(f"{k} {v}" for k, v in sorted(bundle.redactions.items()))
+    lines.append(f"마스킹: {masked or '없음'}")
+    return "\n".join(lines)
+
+
+def read_bundle(args, env: dict, settings: dict) -> DiffBundle:
+    if args.diff:
+        text = sys.stdin.read() if args.diff == "-" else Path(args.diff).read_text(encoding="utf-8")
+        return parse_unified_diff(text, "표준 입력" if args.diff == "-" else args.diff, settings)
+    if args.pr:
+        match = PR_REF.match(args.pr)
+        if not match:
+            raise SystemExit("--pr는 owner/repo#번호 형식입니다")
+        repo, number = match.group(1), int(match.group(2))
+    else:
+        found = pr_from_event(env)
+        if not found:
+            raise SystemExit("--pr, --diff 중 하나를 주거나 pull_request 이벤트의 Action에서 실행하세요")
+        repo, number = found
+    return fetch_pull_request(github_client(env), repo, number, settings)
+
+
+def main(argv: list[str] | None = None, env: dict | None = None) -> int:
+    parser = argparse.ArgumentParser(description="IssueLens PR 선제 리뷰 에이전트")
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--pr", help="owner/repo#번호")
+    source.add_argument("--diff", help="git diff 출력 파일 (- 이면 표준 입력)")
+    parser.add_argument("--dry-run", action="store_true", help="코멘트를 게시하지 않고 출력만 한다")
+    parser.add_argument("--target-root", type=Path, help="대상 레포 루트 (.github/issuelens.yml 위치, 기본 현재 폴더)")
+    parser.add_argument("--json", action="store_true", help="리뷰 입력을 JSON으로 출력")
+    args = parser.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
+    env = dict(os.environ if env is None else env)
+
+    settings = load_settings(args.target_root)
+    bundle = read_bundle(args, env, settings.get("diff", {}))
+    print(json.dumps(bundle.as_dict(), ensure_ascii=False, indent=2) if args.json else format_bundle(bundle))
+    if not args.dry_run:
+        print("\n코멘트 게시는 아직 구현 전입니다 (17.12절 단계 F). 지금은 --dry-run과 같게 동작합니다.", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
