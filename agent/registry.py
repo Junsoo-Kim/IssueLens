@@ -31,6 +31,7 @@ class Library:
     repo: str
     category: str
     packages: list[str]
+    discussions: bool = True  # Discussions Q&A 채택 답변을 수집할지
 
 
 @dataclass
@@ -55,8 +56,10 @@ class Corpus:
 
 def load_corpus(path: Path) -> Corpus:
     config = load_yaml(path)
-    return Corpus([Library(item["repo"], item.get("category", ""), [normalize_package(p) for p in item.get("packages", [])])
-                   for item in config.get("libraries", [])], config.get("defaults", {}))
+    defaults = config.get("defaults", {})
+    return Corpus([Library(item["repo"], item.get("category", ""), [normalize_package(p) for p in item.get("packages", [])],
+                           item.get("discussions", defaults.get("discussions", True)))
+                   for item in config.get("libraries", [])], defaults)
 
 
 def github_repo_from_urls(urls: dict[str, str] | None, home_page: str | None = None) -> str | None:

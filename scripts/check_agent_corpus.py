@@ -29,7 +29,18 @@ from src.collectors.github_client import (DEFAULT_API_VERSION, DEFAULT_USER_AGEN
 from src.config import load_yaml  # noqa: E402
 
 REPORT = ROOT / "data/manifests/agent_corpus_report.json"
-MIN_RECENT_CLOSED = 100  # 최근 1년 종료 이슈가 이보다 적으면 코퍼스로 쓰기에 적다고 표시
+# 코퍼스 규모 기준. 해결된 사용법·버그 이력은 오래돼도 쓸모가 있어 전체 규모를 먼저 보고,
+# 최근 활동은 유지보수가 사실상 멈췄는지만 확인한다
+MIN_CLOSED = 200
+MIN_RECENT_CLOSED = 20
+
+
+def renamed_to(client: GitHubClient, repo: str) -> str | None:
+    """이름이 바뀐 저장소는 GitHub API가 새 저장소를 돌려준다. 없으면 None."""
+    try:
+        return (client.get(f"/repos/{repo}", use_cache=False).data or {}).get("full_name")
+    except GitHubAPIError:
+        return None
 
 
 def check_library(client: GitHubClient, fetch, library, since: str) -> dict:
@@ -51,6 +62,8 @@ def check_library(client: GitHubClient, fetch, library, since: str) -> dict:
             row[label] = (client.get("/search/issues", {"q": query, "per_page": 1}, use_cache=False).data or {}).get("total_count")
         except GitHubAPIError as exc:
             row["problems"].append(f"검색 실패: {exc.status}")
+    if (row.get("closed_issues") or 0) < MIN_CLOSED:
+        row["problems"].append(f"종료 이슈 {row.get('closed_issues')}건 (기준 {MIN_CLOSED})")
     if (row.get("closed_issues_last_year") or 0) < MIN_RECENT_CLOSED:
         row["problems"].append(f"최근 1년 종료 이슈 {row.get('closed_issues_last_year')}건 (기준 {MIN_RECENT_CLOSED})")
     for package in library.packages:
@@ -61,7 +74,11 @@ def check_library(client: GitHubClient, fetch, library, since: str) -> dict:
         if not data:
             row["problems"].append(f"PyPI에 없음: {package}")
         elif found and found.lower() != (row.get("full_name") or library.repo).lower():
-            row["problems"].append(f"{package}의 저장소가 다름: {found}")
+            # PyPI에 예전 저장소 이름이 남아 있을 수 있다. GitHub가 옮겨 준 실제 이름으로 다시 비교한다
+            current = renamed_to(client, found)
+            row["packages"][package] = current or found
+            if (current or found).lower() != (row.get("full_name") or library.repo).lower():
+                row["problems"].append(f"{package}의 저장소가 다름: {current or found}")
     return row
 
 

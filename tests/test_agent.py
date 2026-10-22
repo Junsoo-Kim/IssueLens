@@ -247,6 +247,8 @@ def test_curated_corpus_is_well_formed():
     packages = [p for lib in corpus.libraries for p in lib.packages]
     assert len(packages) == len(set(packages))  # 패키지가 두 저장소에 걸리지 않는다
     assert corpus.by_package()["langchain-openai"].repo == "langchain-ai/langchain"
+    repos_by_name = corpus.by_repo()
+    assert not repos_by_name["streamlit/streamlit"].discussions and repos_by_name["pydantic/pydantic"].discussions
     assert all(re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", p) for p in packages)  # PEP 503 정규화 이름
 
 
@@ -299,13 +301,15 @@ def test_check_agent_corpus_reports_problems(tmp_path, make_client, capsys):
     from scripts import check_agent_corpus
 
     corpus = tmp_path / "corpus.yaml"
-    corpus.write_text("libraries:\n  - {repo: acme/widget, category: x, packages: [widget, widget-extra]}\n"
+    corpus.write_text("libraries:\n  - {repo: acme/widget, category: x, packages: [widget, widget-extra, widget-legacy]}\n"
                       "  - {repo: acme/old, category: x, packages: [old]}\n", encoding="utf-8")
     routes = {
         "/repos/acme/widget": [FakeResponse(json_data={"full_name": "acme/widget", "archived": False,
                                                         "has_discussions": True, "has_issues": True})],
         "/repos/acme/old": [FakeResponse(json_data={"full_name": "acme/new-name", "archived": True})],
         "/search/issues": [FakeResponse(json_data={"total_count": 500})],
+        "/repos/someone/fork": [FakeResponse(json_data={"full_name": "someone/fork"})],
+        "/repos/acme/widget-old": [FakeResponse(json_data={"full_name": "acme/widget"})],  # 이름이 바뀐 저장소
     }
     client, _ = make_client(routes)
 
@@ -314,12 +318,15 @@ def test_check_agent_corpus_reports_problems(tmp_path, make_client, capsys):
             return {"info": {"project_urls": {"Source": "https://github.com/acme/widget"}}}
         if url.endswith("/widget-extra/json"):
             return {"info": {"project_urls": {"Source": "https://github.com/someone/fork"}}}
+        if url.endswith("/widget-legacy/json"):
+            return {"info": {"project_urls": {"Source": "https://github.com/acme/widget-old"}}}
         return None
 
     out = tmp_path / "report.json"
     assert check_agent_corpus.main(["--corpus", str(corpus), "--out", str(out)], client=client, fetch=fetch) == 0
     report = {r["repo"]: r for r in json.loads(out.read_text(encoding="utf-8"))["libraries"]}
     assert report["acme/widget"]["problems"] == ["widget-extra의 저장소가 다름: someone/fork"]
+    assert report["acme/widget"]["packages"]["widget-legacy"] == "acme/widget"  # 옛 이름은 문제로 보지 않는다
     assert "이름이 바뀜: acme/new-name" in report["acme/old"]["problems"]
     assert "보관(archived)된 저장소" in report["acme/old"]["problems"] and "PyPI에 없음: old" in report["acme/old"]["problems"]
     assert "2개 중 문제 없음 0개" in capsys.readouterr().out
