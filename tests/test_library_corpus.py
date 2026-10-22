@@ -212,6 +212,11 @@ def test_build_script_runs_one_library_and_skips_when_fresh(make_client, tmp_pat
     assert "fix 1" in capsys.readouterr().out and load_state(out)[REPO]["kinds"]["usage"] == 1
     assert main(argv, client=client, post=fake_post([])) == 0
     assert "최신 (건너뜀)" in capsys.readouterr().out
+    # 임베딩 없이 만든 구축은 임베딩 실행 때 처음부터 다시 한다
+    from tests.test_indexing import FakeEmbedder
+    client, _ = make_client(routes(), cache=False)
+    assert main(argv[:-1], client=client, post=fake_post([DISCUSSION]), embedder=FakeEmbedder()) == 0
+    assert "처음 구축" in capsys.readouterr().out and load_state(out)[REPO]["embedded"] is True
     assert main(["--repo", "nobody/nothing", "--out", str(out), "--skip-embed"], client=client) == 2
 
 

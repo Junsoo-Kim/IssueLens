@@ -226,10 +226,13 @@ def save_state(root: Path, state: dict) -> None:
     write_json_atomic(Path(root) / STATE_FILE, state)
 
 
-def needs_build(state: dict, repo: str, refresh_days: int, now: datetime | None = None) -> str | None:
-    """None(최신), "full"(처음), "incremental"(오래됨)."""
+def needs_build(state: dict, repo: str, refresh_days: int, now: datetime | None = None,
+                embedded: bool = True) -> str | None:
+    """None(최신), "full"(처음), "incremental"(오래됨).
+
+    embedded: 이번 구축에서 임베딩하는지. 임베딩 없이(--skip-embed) 만든 구축은 Chroma가 비어 있어 처음부터 다시 한다."""
     entry = state.get(repo)
-    if not entry:
+    if not entry or (embedded and not entry.get("embedded", True)):
         return "full"
     built = datetime.fromisoformat(entry["built_at"].replace("Z", "+00:00"))
     return "incremental" if (now or datetime.now(timezone.utc)) - built > timedelta(days=refresh_days) else None
@@ -269,7 +272,7 @@ class LibraryCorpusBuilder:
         repo = library.repo
         report = BuildReport(repo, mode)
         start = self.client.stats.requests
-        entry = state.get(repo) or {}
+        entry = (state.get(repo) or {}) if mode == "incremental" else {}
         known = set(entry.get("issues", [])) | set(entry.get("held_out", []))
         since = entry.get("built_at", "")[:10] if mode == "incremental" else None
 
@@ -344,7 +347,8 @@ class LibraryCorpusBuilder:
         report.chunks = self.index.upsert(items, documents) if items else 0
         report.indexed_issues, report.held_out = len(indexed) - report.discussions, len(held_out)
         report.requests = self.client.stats.requests - start
-        state[repo] = {"built_at": utc_now(), "mode": mode, "issues": sorted(known - set(entry.get("held_out", [])) | set(indexed)),
+        state[repo] = {"built_at": utc_now(), "mode": mode, "embedded": self.index.embedder is not None,
+                       "issues": sorted(known - set(entry.get("held_out", [])) | set(indexed)),
                        "held_out": sorted(set(entry.get("held_out", [])) | set(held_out)),
                        "kinds": {k: entry.get("kinds", {}).get(k, 0) + v for k, v in report.kinds.items()}}
         return report

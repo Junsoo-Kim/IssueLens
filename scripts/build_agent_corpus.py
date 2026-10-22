@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None, client: GitHubClient | None = None, post
 
     state = load_state(args.out)
     for number, library in enumerate(libraries, start=1):
-        mode = needs_build(state, library.repo, args.refresh_days) or ("incremental" if args.force else None)
+        mode = needs_build(state, library.repo, args.refresh_days, embedded=embedder is not None) or ("incremental" if args.force else None)
         if mode is None:
             print(f"({number}/{len(libraries)}) {library.repo}: 최신 (건너뜀)")
             continue
