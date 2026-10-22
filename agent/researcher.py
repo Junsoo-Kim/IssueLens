@@ -85,11 +85,12 @@ def finding_question(finding: Finding) -> str:
     """기획서 17.7절: "`{library}`에서 `{summary}`일 때 알려진 문제와 해결 방법".
 
     근거 판정이 "그 API를 쓰는 사례가 있다"만으로 통과하지 않도록 무엇이 문제인지(우려)와 판정 기준을 함께 쓴다
-    (실제 검증: 1.x에서 없어진 openai.ChatCompletion을 옛 사용 예로 "유효하다"고 판정)."""
+    (실제 검증: 1.x에서 없어진 openai.ChatCompletion을 옛 사용 예로 "유효하다"고 판정, browser 도구를 쓸 때만
+    생기는 버그를 도구를 쓰지 않는 gpt-4o-mini 호출의 근거로 판정)."""
     return (f"{finding.library} ({finding.repo})에서 '{finding.summary}' 변경이 과거에 보고된 문제(오류, 동작 변경, "
             f"제거되거나 바뀐 API, 잘못된 사용법)에 해당하는지와 해결 방법. 우려: {finding.concern or '-'}. "
             f"관련 토큰: {', '.join(finding.exact_tokens) or '-'}. 근거가 같은 API를 쓰는 사례일 뿐 이 우려를 뒷받침하지 "
-            f"않으면 답할 수 없다.")
+            f"않거나, 근거의 문제가 특정 기능·도구·환경에서만 생기는데 그 조건이 이 변경에 없으면 답할 수 없다.")
 
 
 def write_resolution(llm: LLM, finding: Finding, evidence: list[Evidence], max_chars: int = 1200,

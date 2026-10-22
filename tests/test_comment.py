@@ -55,8 +55,8 @@ def test_compose_sections_renumbers_citations_and_links():
     assert "재시도가 추가됐습니다 [근거 1]." in rag and "[근거 2]." in rag and "같은 원인입니다 [근거 1]." in rag
     assert "  - 확인: timeout 지정" in rag
     assert "@​maintainer" in rag and "@maintainer" not in rag  # 멘션 알림 방지
-    assert "모르는 호출. 타임아웃 (관련 라이브러리 이슈를 찾지 못함)" in rest  # 근거 부족 후보는 일반 리뷰로
-    assert "예외를 삼키고 빈 문자열을 반환. 호출부가 실패를 구분할 수 없음" in rest
+    assert "모르는 호출. 타임아웃. (관련 라이브러리 이슈를 찾지 못함)" in rest  # 근거 부족 후보는 일반 리뷰로
+    assert "예외를 삼키고 빈 문자열을 반환. 호출부가 실패를 구분할 수 없음." in rest
     assert f"[근거 1] {REPO}#1 · 이슈 댓글, 유지보수자 · https://github.com/{REPO}/issues/1" in rest
     assert f"[근거 2] {REPO}#2 · Discussions 채택 답변, 유지보수자" in rest and "[근거 3]" not in rest
     assert f"{REPO}#9" not in body  # 인용하지 않은 근거는 싣지 않는다
@@ -161,3 +161,13 @@ def test_action_files_keep_security_constraints():
     assert "head.repo.full_name == github.repository" in workflow["jobs"]["review"]["if"]
     review_step = yaml.safe_load(action_text)["runs"]["steps"][-1]
     assert "${{" not in review_step["run"]  # 입력값은 env로만 넘겨 셸에 직접 끼워 넣지 않는다
+
+
+def test_chunks_of_same_document_share_one_citation():
+    body_a, body_b = evidence(1, f"{REPO}#5", "issue_body"), evidence(2, f"{REPO}#5", "issue_body")
+    research = Research("f1", "grounded", draft="같은 이슈입니다 [근거 1][근거 2]. 다시 [근거 2].",
+                        evidence=[body_a, body_b], cited=[1, 2])
+    review = Review([finding("f1", summary="끝에 마침표가 있는 요약.")], "llm")
+    body = compose(DiffBundle("x", SHA, []), review, {"f1": research})
+    assert "같은 이슈입니다 [근거 1]. 다시 [근거 1]." in body and "[근거 2]" not in body
+    assert "`끝에 마침표가 있는 요약`" in body
