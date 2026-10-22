@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None, embedder=None) -> int:
     parser.add_argument("--retrieval-config", type=Path, default=ROOT / "configs/retrieval.yaml")
     args, build_args = parser.parse_known_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     collections = load_yaml(args.retrieval_config).get("collections", {})
     names = [collections.get("issue_metadata", metadata_indexer.COLLECTION),

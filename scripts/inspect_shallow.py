@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     # Windows cp949 콘솔에서 라벨과 제목의 이모지 때문에 출력이 중단되지 않게 한다
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     if not args.input.exists():
         print(f"입력 파일이 없습니다: {args.input}", file=sys.stderr)

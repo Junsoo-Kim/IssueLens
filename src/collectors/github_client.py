@@ -190,6 +190,32 @@ class GitHubClient:
 
         raise AssertionError("unreachable")
 
+    def send(self, method: str, path: str, body: dict) -> ApiResponse:
+        """쓰기 요청 (PR 코멘트 게시·갱신). 캐시하지 않고, 네트워크 오류와 한도·서버 오류만 재시도한다."""
+        url = self._url(path)
+        for attempt in range(self.settings.max_retries + 1):
+            self._throttle(url)
+            try:
+                response = self.session.request(method, url, json=body, headers=dict(self.headers),
+                                                timeout=(self.settings.connect_timeout_seconds,
+                                                         self.settings.read_timeout_seconds))
+            except (requests.ConnectionError, requests.Timeout) as exc:
+                if attempt >= self.settings.max_retries:
+                    raise GitHubAPIError(None, url, f"network error: {exc}", retryable=True) from exc
+                self.stats.retries += 1
+                self.sleep(self._backoff_seconds(attempt))
+                continue
+            self.stats.requests += 1
+            self._record_rate_limit(response)
+            if 200 <= response.status_code < 300:
+                return ApiResponse(status=response.status_code, data=response.json() if response.content else None, url=url)
+            wait = self._retry_wait(response, attempt)
+            if wait is None or attempt >= self.settings.max_retries:
+                raise GitHubAPIError(response.status_code, url, _error_message(response), retryable=wait is not None)
+            self.stats.retries += 1
+            self.sleep(wait)
+        raise AssertionError("unreachable")
+
     def paginate(self, path: str, params: dict | None = None, max_pages: int | None = None) -> Iterator[ApiResponse]:
         """Link 헤더의 next를 따라가며 페이지를 순서대로 반환한다."""
         page = self.get(path, params)

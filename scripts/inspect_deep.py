@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="파일을 쓰지 않고 기존 final_selection.jsonl과 증거 수준·분리 차이만 출력")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     for path in (args.selection, args.deep_issues):
         if not path.exists():

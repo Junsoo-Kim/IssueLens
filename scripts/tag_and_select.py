@@ -105,7 +105,7 @@ def format_report(report: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if not args.input.exists():
         print(f"입력 파일이 없습니다: {args.input}", file=sys.stderr)
         return 2

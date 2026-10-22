@@ -1,0 +1,29 @@
+diff --git a/requirements.txt b/requirements.txt
+index 1111111..2222222 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,3 +1,3 @@
+ fastapi==0.115.0
+-openai==0.28.1
++openai==1.51.0
+ pydantic==2.9.2
+diff --git a/app/llm.py b/app/llm.py
+index 3333333..4444444 100644
+--- a/app/llm.py
++++ b/app/llm.py
+@@ -1,9 +1,12 @@
+ import openai
+ 
+ 
+ def summarize(text: str) -> str:
+-    response = openai.ChatCompletion.create(
++    response = openai.ChatCompletion.create(
+         model="gpt-4o-mini",
+         messages=[{"role": "user", "content": f"Summarize: {text}"}],
++        request_timeout=5,
+     )
+-    return response["choices"][0]["message"]["content"]
++    try:
++        return response["choices"][0]["message"]["content"]
++    except Exception:
++        return ""

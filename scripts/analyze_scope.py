@@ -110,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=ROOT / "data/manifests/scope_report.json")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if not args.selection.exists():
         print(f"입력 파일이 없습니다: {args.selection}", file=sys.stderr)
         return 2
