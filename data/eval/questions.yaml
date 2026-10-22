@@ -1,0 +1,106 @@
+# 검증 질문 세트 (기획서 11.2절, 요구사항 정의서 4장 검증용)
+#
+#   python scripts/run_eval.py               # 전체 실행, 기대 결과와 비교
+#   python scripts/run_eval.py --only q01 q07
+#
+# 점수를 매기지 않고 기대 결과와 실제 결과가 맞는지만 본다.
+# log_from: 평가용(색인 제외) 이슈 ID. 실행할 때 로컬 원본에서 오류 로그를 읽어 질문으로 쓴다 (원문은 커밋하지 않음).
+#
+# expect 항목 (모두 선택)
+#   answer: true면 근거 기반 답변, false면 "제공된 문서에서 확인되지 않습니다." 거부, any면 둘 다 허용
+#   cited_repos: 인용한 이슈가 모두 이 저장소 중 하나여야 함 (다른 제품 근거 혼입 확인)
+#   cite_any: 이 중 하나 이상이 인용돼야 함
+#   cite_issue: 선택 이슈 자체가 근거에 포함돼야 함 (selected_issue 유형)
+#   issues_any / issues_none: 조건 탐색 결과에 포함돼야 할 / 없어야 할 이슈
+#   result_repos, result_types: 조건 탐색 결과가 모두 이 저장소·유형이어야 함
+#   empty: 조건 탐색 결과가 없어야 함
+# repo: 저장소 고정 (화면에서 저장소를 고른 경우와 같음)
+# 로그 유형은 항상 원본 평가용 이슈가 결과(인용·가까운 사례)에 없어야 한다.
+
+questions:
+  # ------------------------------------------------------------ 근거 있는 질문
+  - id: q01
+    type: grounded
+    question: sync job fails with timeout on large MySQL tables
+    expect: {answer: true, cited_repos: [airbytehq/airbyte], cite_any: [airbytehq/airbyte#9784]}
+  - id: q02
+    type: grounded
+    question: 동기화 작업이 대용량 테이블에서 타임아웃으로 실패해
+    expect: {answer: true, cited_repos: [airbytehq/airbyte]}
+  - id: q03
+    type: grounded
+    question: Keycloak 업그레이드 후 로그인 시 토큰 검증 오류가 나요
+    expect: {answer: true, cited_repos: [keycloak/keycloak]}
+  - id: q04
+    type: grounded
+    question: DataHub 인덱스 복원 중 NullPointerException이 발생해
+    expect: {answer: true, cited_repos: [datahub-project/datahub], cite_any: [datahub-project/datahub#13067, datahub-project/datahub#10354]}
+  # 색인의 Conductor 이슈에는 NotFoundException을 던지는 테스트·코드만 있고 원인·해결을 다룬 이슈가 없다
+  # (2026-10-22 실행에서 세 시도 모두 판정 부족). 근거가 없으면 거부, 답한다면 Conductor 근거만 쓰는지 본다
+  - id: q05
+    type: grounded
+    question: Conductor에서 태스크 정의를 찾을 수 없다는 NotFoundException이 나요
+    expect: {answer: any, cited_repos: [conductor-oss/conductor]}
+
+  # ------------------------------------------------------------ 오류 로그 (평가용 이슈의 실제 로그)
+  - id: q06
+    type: error_log
+    log_from: conductor-oss/conductor#1363
+    expect: {answer: any, cited_repos: [conductor-oss/conductor]}
+  # 이 로그는 로거 이름이 o.o.s.o처럼 줄어 있어 제품을 알 수 없다. 사용자가 로그 진단 탭에서 저장소를 고른 경우(q07)와
+  # 고르지 않은 경우(q17)를 나눠 본다. 고르지 않으면 다른 제품 근거로 답할 수 있으므로 원본 미노출만 확인한다
+  - id: q07
+    type: error_log
+    log_from: open-metadata/OpenMetadata#27548
+    repo: open-metadata/OpenMetadata
+    expect: {answer: any, cited_repos: [open-metadata/OpenMetadata]}
+  - id: q08
+    type: error_log
+    log_from: keycloak/keycloak#53760
+    expect: {answer: false}
+  - id: q09
+    type: error_log
+    log_from: thingsboard/thingsboard#15636
+    expect: {answer: any, cited_repos: [thingsboard/thingsboard]}
+
+  # ------------------------------------------------------------ 근거 없음
+  - id: q10
+    type: no_evidence
+    question: upgrade 후 로그인 시 TokenVerificationException 발생
+    expect: {answer: false}
+  - id: q11
+    type: no_evidence
+    question: iOS 앱에서 푸시 알림이 오지 않아요
+    expect: {answer: false}
+  - id: q12
+    type: no_evidence
+    question: Windows 업데이트 후 프린터가 인식되지 않아요
+    expect: {answer: false}
+
+  # ------------------------------------------------------------ 조건 탐색 (F2011)
+  - id: q13
+    type: condition
+    question: Airbyte MySQL 대용량 테이블 동기화가 타임아웃으로 실패한 버그 찾아줘
+    expect: {issues_any: [airbytehq/airbyte#9784], result_repos: [airbytehq/airbyte], result_types: [bug]}
+  - id: q14
+    type: condition
+    question: upgrade 후 로그인 시 TokenVerificationException이 발생한 종료 이슈 찾아줘
+    expect: {empty: true}
+
+  # ------------------------------------------------------------ 선택 이슈 후속 질문
+  - id: q15
+    type: selected_issue
+    issue: airbytehq/airbyte#9784
+    question: 이 문제를 해결하려면 어떤 설정을 확인해야 해?
+    expect: {answer: true, cite_issue: true}
+  - id: q16
+    type: selected_issue
+    issue: datahub-project/datahub#13067
+    question: 이 이슈는 어떻게 해결됐어?
+    expect: {answer: true, cite_issue: true}
+
+  # ------------------------------------------------------------ 저장소 미지정 로그 (q07 비교용)
+  - id: q17
+    type: error_log
+    log_from: open-metadata/OpenMetadata#27548
+    expect: {answer: any}

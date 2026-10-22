@@ -300,3 +300,14 @@ def test_hybrid_falls_back_to_sparse_when_dense_fails(index_dirs):
     assert result.trace["issue_rankings"]["dense"] == []
     assert result.trace["warnings"] and "BM25 결과만" in result.trace["warnings"][0]
     assert retriever.retrieve("x", mode="sparse").trace["warnings"] == []  # 호출마다 초기화
+
+
+def test_query_tokens_with_korean_particles():
+    from src.retrieval.query_analyzer import analyze_query
+
+    cases = {"Conductor에서 NotFoundException이 나요": "NotFoundException", "500에러가 나요": "500",
+             "KC_DB_POOL_MAX_SIZE를 바꿨더니": "KC_DB_POOL_MAX_SIZE", "org.keycloak.protocol.oidc에서": "org.keycloak.protocol.oidc"}
+    for question, token in cases.items():
+        assert token in analyze_query(question, []).exact_tokens, question
+    assert analyze_query("Conductor에서 NotFoundException이 나요", []).query_type == "error_log"
+    assert analyze_query("version 1500 build", []).exact_tokens == []

@@ -7,12 +7,16 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from src.preprocessing.tagger import EXCEPTION_NAME, STACK_TRACE, VERSION_TOKEN, classify_categories
+from src.preprocessing.tagger import STACK_TRACE, VERSION_TOKEN, classify_categories
 
-LOG_LEVEL = re.compile(r"\b(ERROR|WARN(?:ING)?|FATAL|CRITICAL)\b")
-STATUS_CODE = re.compile(r"\b[45]\d\d\b")
-CONFIG_KEY = re.compile(r"\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+){1,}\b")
-DOTTED_PATH = re.compile(r"\b[a-z][\w]*(?:\.[a-z_][\w]*){2,}\b")
+# 질문은 한국어 조사가 영문 토큰에 바로 붙는다("NotFoundException이", "500에러"). \b는 한글도 단어 문자로 보아
+# 경계를 못 찾으므로 영문·숫자 기준 경계를 쓴다
+_L, _R = r"(?<![A-Za-z0-9_])", r"(?![A-Za-z0-9_])"
+QUESTION_EXCEPTION = re.compile(_L + r"[A-Z][A-Za-z0-9_]*(?:Exception|Error)" + _R)
+LOG_LEVEL = re.compile(_L + r"(ERROR|WARN(?:ING)?|FATAL|CRITICAL)" + _R)
+STATUS_CODE = re.compile(_L + r"[45]\d\d" + r"(?![0-9])")
+CONFIG_KEY = re.compile(_L + r"[A-Z][A-Z0-9]*(?:_[A-Z0-9]+){1,}" + _R)
+DOTTED_PATH = re.compile(_L + r"[a-z][A-Za-z0-9_]*(?:\.[a-z_][A-Za-z0-9_]*){2,}" + _R)
 CONDITION = re.compile(r"찾아|검색해|목록|리스트|보여\s*줘|알려\s*줘.*이슈|\bfind\b|\blist\b|\bshow me\b", re.I)
 QUERY_TYPES = ("error_log", "natural_language", "condition_search", "selected_issue")
 
@@ -52,7 +56,7 @@ def _unique(items) -> list[str]:
 def analyze_query(question: str, repositories: list[dict], selected_issue_id: str | None = None) -> QueryAnalysis:
     compact = _compact(question)
     explicit = [repo for repo, names in repo_aliases(repositories).items() if any(n in compact for n in names)]
-    error_types = _unique(EXCEPTION_NAME.findall(question))
+    error_types = _unique(QUESTION_EXCEPTION.findall(question))
     versions = _unique(m.group(0) for m in VERSION_TOKEN.finditer(question))
     exact = _unique([*error_types, *versions, *CONFIG_KEY.findall(question), *DOTTED_PATH.findall(question),
                      *STATUS_CODE.findall(question)])

@@ -43,6 +43,19 @@ def log_blocks(text: str) -> list[str]:
     return blocks
 
 
+def issue_log(raw: RawStore, issue_id: str) -> dict | None:
+    """이슈 하나의 본문·댓글에서 가장 긴 오류 로그 블록. 없으면 None."""
+    repo, number = issue_id.rsplit("#", 1)
+    issue = load_raw(raw, repo, "issues", int(number)) or {}
+    comments = load_raw(raw, repo, "comments", int(number)) or []
+    texts = [issue.get("body") or "", *(c.get("body") or "" for c in comments)]
+    blocks = [b for text in texts for b in log_blocks(text)]
+    if not blocks:
+        return None
+    return {"issue_id": issue_id, "title": issue.get("title", ""), "url": issue.get("html_url", ""),
+            "log": max(blocks, key=len)}
+
+
 def sample(rows: list[dict], raw: RawStore, per_repo: int) -> list[dict]:
     counts: dict[str, int] = {}
     samples = []
@@ -50,15 +63,10 @@ def sample(rows: list[dict], raw: RawStore, per_repo: int) -> list[dict]:
         repo = row["repo"]
         if counts.get(repo, 0) >= per_repo:
             continue
-        issue = load_raw(raw, repo, "issues", row["number"]) or {}
-        comments = load_raw(raw, repo, "comments", row["number"]) or []
-        texts = [issue.get("body") or "", *(c.get("body") or "" for c in comments)]
-        blocks = [b for text in texts for b in log_blocks(text)]
-        if not blocks:
-            continue
-        counts[repo] = counts.get(repo, 0) + 1
-        samples.append({"issue_id": row["issue_id"], "title": issue.get("title", ""),
-                        "url": issue.get("html_url", ""), "log": max(blocks, key=len)})
+        found = issue_log(raw, row["issue_id"])
+        if found:
+            counts[repo] = counts.get(repo, 0) + 1
+            samples.append(found)
     return samples
 
 
