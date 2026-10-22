@@ -6,6 +6,8 @@ app:
 llm:
   model: gpt-5-mini         # 답변 생성 모델, API 주소는 .env의 OPENAI_BASE_URL
                             # GPT-5 계열은 temperature 기본값(1)만 지원하므로 지정하지 않는다
+  reasoning_effort: low     # 추론 모델의 생각 양 (minimal/low/medium/high). 기본값(medium)은 질문당 1분 넘게 걸린다
+                            # 주소가 이 값을 받지 않으면 한 번 경고하고 빼고 다시 호출한다
 
 http:                       # 기획서 5.7절, request_interval_seconds는 내부 초기값
   connect_timeout_seconds: 5
@@ -17,6 +19,18 @@ http:                       # 기획서 5.7절, request_interval_seconds는 내�
 
 collection:
   max_linked_prs: 5         # 이슈당 연결 PR 상세 수집 상한
+
+rag:
+  max_attempts: 3           # ① 원래 질문 ② 프롬프트 1 재작성 검색어 ③ 질문 시점 외부 수집 후 재검색
+  allow_general_answer: false   # 근거 부족 시 RAG 미사용 일반 답변을 분리 섹션으로 덧붙일지 (기본 꺼짐)
+  evidence_chars: 1200      # 프롬프트 3에 넣는 근거 1건당 최대 글자 수
+  citation_retries: 1       # 존재하지 않는 근거 번호를 인용하면 다시 생성하는 횟수
+
+query_time_collection:      # 요구사항 F2003·F2004·NF2002
+  enabled: true
+  results_per_query: 10     # GitHub 검색 결과에서 프롬프트 2에 보여 줄 후보 수
+  max_queries: 3
+  max_selected: 3           # 프롬프트 2가 고를 수 있는 최대 이슈 수
 
 paths:
   raw_dir: data/raw/github

@@ -13,10 +13,9 @@
 from __future__ import annotations
 
 import argparse
-import json
 import shutil
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,64 +29,11 @@ from src.indexing import document_indexer, metadata_indexer  # noqa: E402
 from src.indexing.bm25_indexer import TOKENIZER_VERSION, build_bm25_indexes, load_bm25_ids  # noqa: E402
 from src.indexing.chroma_store import collection_ids, get_collection, open_client, sync_collection  # noqa: E402
 from src.indexing.embeddings import LazyOpenAIEmbedder  # noqa: E402
-from src.preprocessing.document_builder import (  # noqa: E402
-    build_comment_documents,
-    build_issue_body,
-    build_pull_request_documents,
-)
-from src.preprocessing.metadata_builder import build_issue_item  # noqa: E402
-from src.preprocessing.resolution import infer_maintainers  # noqa: E402
+from src.collectors.query_time import QUERY_TIME_DOCUMENTS  # noqa: E402
+from src.preprocessing.build import build_processed  # noqa: E402
 from src.preprocessing.tagger import primary_category  # noqa: E402
 
 INDEX_VERSION = "1"
-
-
-def load_raw(raw_store: RawStore, repo: str, kind: str, number: int):
-    path = raw_store.path(repo, kind, str(number))
-    if not path.exists():
-        return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
-
-
-def build_processed(selection: list[dict], tags: dict, summaries: dict, deep_pool: list[dict], raw_store: RawStore):
-    """색인 대상 이슈로 RAG 1 항목, RAG 2 문서, 탈락 문서를 만든다."""
-    pool_by_repo: dict[str, list[int]] = defaultdict(list)
-    for row in deep_pool:
-        pool_by_repo[row["repo"]].append(row["number"])
-    maintainers = {
-        repo: infer_maintainers(filter(None, (load_raw(raw_store, repo, "issues", n) for n in numbers)))
-        for repo, numbers in pool_by_repo.items()
-    }
-
-    items, documents, rejected, missing = [], [], [], []
-    for row in selection:
-        repo, number, issue_id = row["repo"], row["number"], row["issue_id"]
-        issue = load_raw(raw_store, repo, "issues", number)
-        comments = load_raw(raw_store, repo, "comments", number)
-        if issue is None or comments is None or issue_id not in summaries:
-            missing.append(issue_id)
-            continue
-        summary = summaries[issue_id]
-        item = build_issue_item(issue, tags.get(issue_id, {}), row, summary)
-        items.append(item)
-
-        issue_author = (issue.get("user") or {}).get("login")
-        documents.append(build_issue_body(issue, item))
-        comment_docs, comment_rejected = build_comment_documents(comments, item, issue_author, maintainers.get(repo, set()))
-        documents.extend(comment_docs)
-        rejected.extend(comment_rejected)
-        for pr_summary in summary.get("linked_pull_requests", []):
-            pr = load_raw(raw_store, repo, "pulls", pr_summary["number"])
-            files = load_raw(raw_store, repo, "pull_files", pr_summary["number"]) or []
-            if pr is None:
-                rejected.append({"document_id": f"{issue_id}:pull_request:{pr_summary['number']}", "issue_id": issue_id,
-                                 "document_type": "pull_request", "reject_reason": "raw_missing"})
-                continue
-            pr_docs, pr_rejected = build_pull_request_documents(pr, files, item)
-            documents.extend(pr_docs)
-            rejected.extend(pr_rejected)
-    return items, documents, rejected, missing, {repo: len(m) for repo, m in maintainers.items()}
 
 
 def reset_indexes(chroma_dir: Path, sparse_dir: Path) -> None:
@@ -172,8 +118,11 @@ def build(argv: list[str] | None = None, embedder=None) -> tuple[int, dict | Non
     items, documents, rejected, missing, maintainers = build_processed(
         selection, tags, summaries, read_jsonl(args.deep_selection), RawStore(args.raw_dir))
 
+    # 질문 시점에 수집해 색인한 문서도 함께 넣어, 재색인할 때 사라진 레코드로 지워지지 않게 한다
+    query_time_path = args.processed_dir / QUERY_TIME_DOCUMENTS
+    query_time_documents = read_jsonl(query_time_path) if query_time_path.exists() else []
     issue_records = metadata_indexer.issue_records(items)
-    chunk_records = document_indexer.document_records(documents, chunking)
+    chunk_records = document_indexer.document_records(documents + query_time_documents, chunking)
     write_jsonl_atomic(args.processed_dir / "issue_items.jsonl", items)
     write_jsonl_atomic(args.processed_dir / "issue_documents.jsonl", documents)
     write_jsonl_atomic(args.processed_dir / "rejected_documents.jsonl", rejected)
@@ -222,6 +171,7 @@ def build(argv: list[str] | None = None, embedder=None) -> tuple[int, dict | Non
             "issue_items_by_repo": dict(Counter(i["repo"] for i in items)),
             "documents": len(documents),
             "documents_by_type": dict(Counter(d["document_type"] for d in documents)),
+            "query_time_documents": len(query_time_documents),
             "rejected_documents": len(rejected),
             "rejected_by_reason": dict(Counter(r["reject_reason"].split("(")[0] for r in rejected)),
             "chunks": len(chunk_records),

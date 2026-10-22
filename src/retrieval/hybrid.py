@@ -16,7 +16,7 @@ from typing import Callable
 from src.indexing import document_indexer, metadata_indexer
 from src.indexing.chroma_store import get_collection, open_client
 from src.indexing.ids import issue_record_id
-from src.retrieval.dense_retriever import DenseRetriever, in_filter
+from src.retrieval.dense_retriever import DenseRetriever, DenseSearchUnavailable, in_filter
 from src.retrieval.evidence_selector import Evidence, assess_evidence, select_evidence
 from src.retrieval.query_analyzer import QueryAnalysis, analyze_query
 from src.retrieval.repository_router import RouteResult, fixed_route, issue_id_of_record, route_by_hits
@@ -56,6 +56,7 @@ class HybridRetriever:
         self.issue_collection = get_collection(client, metadata_name)
         self.document_collection = get_collection(client, documents_name)
         self._query_vectors: dict[str, list[float]] = {}
+        self._warnings: list[str] = []
         cached = self._cached_embed(embed_query)
         self.issue_dense = DenseRetriever(self.issue_collection, cached)
         self.document_dense = DenseRetriever(self.document_collection, cached)
@@ -85,7 +86,7 @@ class HybridRetriever:
     def _search_issues(self, analysis: QueryAnalysis, repos: list[str], mode: str) -> tuple[list[FusedHit], dict]:
         cfg = self.config.get("issue", {})
         sparse = self.issue_sparse.search(analysis.sparse_query(), repos, cfg.get("sparse_top_k", 30)) if mode != "dense" else []
-        dense = (self.issue_dense.search(analysis.question, cfg.get("dense_top_k", 30), in_filter("repo", repos))
+        dense = (self._dense(self.issue_dense, analysis.question, cfg.get("dense_top_k", 30), in_filter("repo", repos))
                  if mode != "sparse" else [])
         fused = self._fuse([i for i, _ in sparse], [i for i, _, _ in dense], analysis.query_type, mode)
         return fused[: cfg.get("fused_top_k", 30)], {"sparse": [i for i, _ in sparse], "dense": [i for i, _, _ in dense]}
@@ -140,16 +141,32 @@ class HybridRetriever:
         forced.extend({"id": i, "text": t, "metadata": m} for i, t, m in chunks[:1])
         return forced
 
+    def _dense(self, retriever: DenseRetriever, query: str, top_k: int, where: dict) -> list[tuple[str, float, dict]]:
+        """Dense 검색이 재시도 후에도 실패하면 BM25 결과만으로 계속하고 경고를 남긴다."""
+        try:
+            return retriever.search(query, top_k, where)
+        except DenseSearchUnavailable as exc:
+            self._warnings.append(f"Dense 검색을 쓰지 못해 BM25 결과만 사용했습니다 ({exc})")
+            return []
+
+    def refresh_sparse(self) -> None:
+        """질문 시점 수집으로 BM25 인덱스 파일이 바뀐 뒤 다시 읽게 한다."""
+        self.issue_sparse._indexes.clear()
+        self.document_sparse._indexes.clear()
+
     def retrieve(self, question: str, repo: str | None = None, selected_issue_id: str | None = None,
-                 mode: str = "hybrid") -> RetrievalResult:
+                 mode: str = "hybrid", extra_issue_ids: list[str] | None = None) -> RetrievalResult:
+        """extra_issue_ids: 질문 시점 수집 등으로 근거 검색 범위에 반드시 넣을 이슈. 상위 이슈보다 앞에 둔다."""
         if mode not in MODES:
             raise ValueError(f"mode는 {MODES} 중 하나여야 합니다: {mode}")
+        self._warnings = []
         analysis = analyze_query(question, self.repositories, selected_issue_id)
         route = self._route(analysis, repo, selected_issue_id, mode)
         issues, issue_rankings = self._search_issues(analysis, route.repos, mode) if route.repos else ([], {})
 
         doc_cfg = self.config.get("document", {})
         top_issue_ids = [issue_id_of_record(h.id) for h in issues[: self.config.get("issue", {}).get("rerank_top_k", 8)]]
+        top_issue_ids = list(dict.fromkeys([*(extra_issue_ids or []), *top_issue_ids]))
         if selected_issue_id and selected_issue_id not in top_issue_ids:
             top_issue_ids.insert(0, selected_issue_id)
 
@@ -159,8 +176,8 @@ class HybridRetriever:
             doc_repos = sorted({i.rsplit("#", 1)[0] for i in top_issue_ids})
             sparse = (self.document_sparse.search(analysis.sparse_query(), doc_repos, doc_cfg.get("sparse_top_k", 40),
                                                   allow=lambda i: i.startswith(prefixes)) if mode != "dense" else [])
-            dense = (self.document_dense.search(analysis.question, doc_cfg.get("dense_top_k", 40),
-                                                in_filter("issue_id", top_issue_ids)) if mode != "sparse" else [])
+            dense = (self._dense(self.document_dense, analysis.question, doc_cfg.get("dense_top_k", 40),
+                                 in_filter("issue_id", top_issue_ids)) if mode != "sparse" else [])
             document_rankings = {"sparse": [i for i, _ in sparse], "dense": [i for i, _, _ in dense]}
             documents = self._fuse(document_rankings["sparse"], document_rankings["dense"], analysis.query_type,
                                    mode)[: doc_cfg.get("fused_top_k", 30)]
@@ -189,5 +206,6 @@ class HybridRetriever:
                 "document_rankings": document_rankings,
                 "top_issue_ids": top_issue_ids,
                 "weights": self._weights(analysis.query_type) if mode == "hybrid" else None,
+                "warnings": list(self._warnings),
             },
         )

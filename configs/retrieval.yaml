@@ -46,7 +46,3 @@ retrieval:
   diversity:
     max_evidence_per_issue: 3
     max_evidence_per_document_type: 4
-  mmr_experiment:
-    fetch_k: 30
-    k: 10
-    lambda_mult: 0.5

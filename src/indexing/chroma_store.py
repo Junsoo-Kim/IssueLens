@@ -95,6 +95,30 @@ def sync_collection(collection, records: list[dict], embed: Embedder | None, bat
     return result
 
 
+def upsert_records(collection, records: list[dict], embed: Embedder, batch_size: int = EMBED_BATCH_SIZE) -> SyncResult:
+    """기존 레코드를 지우지 않고 추가·갱신만 한다. 질문 시점에 수집한 문서를 색인할 때 쓴다."""
+    prepared = []
+    for record in records:
+        metadata = scalar_metadata(record["metadata"])
+        metadata["record_hash"] = record_hash(record["text"], metadata)
+        prepared.append({"id": record["id"], "text": record["text"], "metadata": metadata})
+    ids = [item["id"] for item in prepared]
+    existing = collection.get(ids=ids, include=["metadatas"]) if ids else {"ids": [], "metadatas": []}
+    existing_hash = {i: (m or {}).get("record_hash") for i, m in zip(existing["ids"], existing["metadatas"])}
+    changed = [item for item in prepared if existing_hash.get(item["id"]) != item["metadata"]["record_hash"]]
+    result = SyncResult(total=len(prepared))
+    for start in range(0, len(changed), batch_size):
+        batch = changed[start:start + batch_size]
+        vectors = embed([item["text"] for item in batch])
+        result.dimensions = len(vectors[0]) if vectors else result.dimensions
+        collection.upsert(ids=[i["id"] for i in batch], embeddings=vectors, documents=[i["text"] for i in batch],
+                          metadatas=[i["metadata"] for i in batch])
+    result.added = sum(1 for item in changed if item["id"] not in existing_hash)
+    result.updated = len(changed) - result.added
+    result.unchanged = len(prepared) - len(changed)
+    return result
+
+
 def stored_dimensions(collection) -> int | None:
     """새로 임베딩한 레코드가 없을 때 저장된 벡터에서 차원을 읽는다."""
     sample = collection.get(limit=1, include=["embeddings"])
