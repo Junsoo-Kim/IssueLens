@@ -14,6 +14,7 @@ data/cache/**
 data/processed/**
 chroma_db/**
 sparse_index/**
+agent_index/
 !**/.gitkeep
 
 # 이슈 원문이 담긴 수집 결과(*.jsonl)는 공개 저장소에 올리지 않고 로컬에만 둔다.

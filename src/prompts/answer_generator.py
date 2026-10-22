@@ -16,6 +16,8 @@ SOURCE_TYPE_LABELS = {
     "pull_request": "PR 설명",
     "pull_patch": "PR 변경 내용",
     "official_doc": "공식 문서",
+    "discussion_question": "Discussions 질문",
+    "discussion_answer": "Discussions 채택 답변",
 }
 
 SYSTEM = f"""당신은 오픈소스 서비스 장애 조사를 돕는 기술 분석가입니다. 아래 [근거]만 사용해 한국어로 답합니다.

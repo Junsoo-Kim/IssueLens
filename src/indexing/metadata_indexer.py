@@ -1,6 +1,7 @@
 """RAG 1 issue_metadata 레코드 구성. 이슈 1건이 레코드 1개다 (기획서 6.1절)."""
 from __future__ import annotations
 
+from src.indexing.document_indexer import corpus_fields
 from src.indexing.ids import issue_record_id
 
 COLLECTION = "issue_metadata"
@@ -32,6 +33,7 @@ def issue_records(items: list[dict]) -> list[dict]:
                 "closed_at": item["closed_at"],
                 "source_url": item["source_url"],
                 "content_hash": item["content_hash"],
+                **corpus_fields(item),
             },
         })
     return records

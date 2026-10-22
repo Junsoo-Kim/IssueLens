@@ -11,6 +11,14 @@ COLLECTION = "issue_documents"
 DEFAULT_CHUNKING = {"chunk_size": 900, "chunk_overlap": 150}
 
 
+CORPUS_FIELDS = ("corpus", "resolution_kind", "library")
+
+
+def corpus_fields(source: dict) -> dict:
+    """에이전트 코퍼스(라이브러리 저장소) 표시. 챗봇 색인과 같은 이유로 값이 있을 때만 붙인다."""
+    return {key: source[key] for key in CORPUS_FIELDS if source.get(key)}
+
+
 def make_splitter(document_type: str, chunking: dict) -> RecursiveCharacterTextSplitter:
     settings = chunking.get(document_type, DEFAULT_CHUNKING)
     size, overlap = settings["chunk_size"], settings["chunk_overlap"]
@@ -59,6 +67,7 @@ def document_records(documents: list[dict], chunking: dict) -> list[dict]:
                     # 질문 시점 외부 수집 문서만 표시한다. 사전 수집 문서에 키를 추가하면 레코드 해시가 바뀌어
                     # 전체가 다시 임베딩되므로 기존 문서의 메타데이터는 그대로 둔다
                     **({"collection_source": document["collection_source"]} if document.get("collection_source") else {}),
+                    **corpus_fields(document),
                 },
             })
     return records
