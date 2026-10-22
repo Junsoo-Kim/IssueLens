@@ -286,3 +286,13 @@ def test_fast_llm_handles_query_plan_while_main_llm_grades_and_answers(rag_root)
     assert state["answered_from_evidence"]
     assert fast_llm.calls == ["plan"] and "plan" not in main_llm.calls
     assert main_llm.calls[:2] == ["grade", "answer"]
+
+
+def test_rewritten_attempt_keeps_question_exact_tokens(rag_root):
+    # 영어 재작성 검색어에 예외명이 없어도, 원래 질문의 예외명이 근거에 없으면 부족으로 본다
+    llm = FakeLLM(relevant_issue=f"{KC}#3", plan={"query_type": "error_log", "candidate_repos": [KC],
+                                                 "search_queries": ["realm export misses client scopes"], "exact_tokens": []})
+    state = make_assistant(rag_root, llm).ask("NoSuchBeanDefinitionException 발생 realm export")
+    assert [a["stage"] for a in state["attempts"]] == ["original", "rewritten"]
+    assert all("정확 토큰" in a["grade"]["reason"] for a in state["attempts"])
+    assert not state["sufficient"]

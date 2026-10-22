@@ -62,6 +62,8 @@ def summarize(kind: str, label: str, state: dict, seconds: float, original: str 
                      f"/ 선택 {selection.get('selected_ids') or '-'}")
         lines += [f"  - 수집 오류: {short(e)}" for e in collection.get("errors", [])]
     lines += [f"  - 주의: {short(w)}" for w in state.get("warnings", [])]
+    timings = state.get("timings") or {}
+    lines.append("  - 시간: " + " / ".join(f"{k.replace('attempt_', '')} {v:.0f}s" for k, v in timings.items()))
     if original:
         leaked = original in cited or original in [n["issue_id"] for n in state.get("nearest_issues") or []]
         lines.append(f"  - 원본 이슈 {original}: {'결과에 나옴 (확인 필요)' if leaked else '결과에 없음 (정상)'}")

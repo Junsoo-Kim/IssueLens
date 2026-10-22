@@ -21,7 +21,9 @@ from src.prompts.answer_generator import NO_EVIDENCE_MESSAGE, generate_answer, g
 from src.prompts.evidence_grader import grade_evidence
 from src.prompts.llm import LLM, LLMUnavailable
 from src.prompts.query_extractor import extract_queries
+from src.retrieval.evidence_selector import assess_evidence
 from src.retrieval.hybrid import HybridRetriever, RetrievalResult
+from src.retrieval.query_analyzer import analyze_query
 from src.retrieval.repository_router import issue_id_of_record
 from src.services.citation_validator import check_citations, remove_citations
 
@@ -68,14 +70,17 @@ class RAGPipeline:
     def _attempt(self, stage: str, search_text: str, result: RetrievalResult, question: str,
                  config: RunnableConfig | None = None) -> dict:
         report(config, "근거 정리 중")
-        grade = grade_evidence(self.llm, question, result.evidence, result.assessment)
+        # 재작성 검색어나 수집 후 검색도 원래 질문의 정확 토큰(예외명 등)으로 판정한다.
+        # 검색어마다 토큰을 다시 뽑으면 영어 검색어에 예외명이 빠진 시도가 정확 토큰 규칙을 피해 간다
+        assessment = assess_evidence(result.evidence, analyze_query(question, self.repositories).exact_tokens)
+        grade = grade_evidence(self.llm, question, result.evidence, assessment)
         return {
             "stage": stage,
             "search_text": search_text,
             "route": {"repos": result.route.repos, "reason": result.route.reason, "confidence": result.route.confidence},
             "top_issues": [issue_id_of_record(h.id) for h in result.issues[:8]],
             "evidence_count": len(result.evidence),
-            "assessment": result.assessment,
+            "assessment": assessment,
             "grade": grade.as_dict(),
             "_result": result,
         }
