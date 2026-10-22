@@ -147,5 +147,7 @@ GitHub Action으로 쓰려면 [워크플로 예시](docs/issuelens_review_workfl
 ## 문서
 
 - [기획서](docs/IssueLens_기획서.md): 챗봇과 에이전트 전체 설계
+- [RAG 파이프라인 설계문서](docs/rag_design.md): 청킹·색인·검색·생성 설정값과 바꿨을 때의 차이
+- [요구사항 대조표](docs/requirements_traceability.md)
 - [범위 확정](docs/scope.md)
 - [증빙 체크리스트](docs/evidence_checklist.md): 요구사항 정의서 4장 항목별 확인 방법
