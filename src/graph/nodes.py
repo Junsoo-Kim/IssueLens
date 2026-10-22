@@ -12,6 +12,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
+from langchain_core.runnables import RunnableConfig
+
 from src.collectors.query_time import QueryTimeCollector, collection_queries
 from src.graph.state import RAGState
 from src.indexing.ids import issue_record_id
@@ -24,6 +26,13 @@ from src.retrieval.repository_router import issue_id_of_record
 from src.services.citation_validator import check_citations, remove_citations
 
 NEAREST_ISSUES = 3
+
+
+def report(config: RunnableConfig | None, message: str) -> None:
+    """화면의 진행 상태 표시용. ask(progress=...)로 넘긴 콜백이 있을 때만 부른다."""
+    callback = ((config or {}).get("configurable") or {}).get("progress")
+    if callback:
+        callback(message)
 
 
 @dataclass
@@ -52,7 +61,9 @@ class RAGPipeline:
         title = got["metadatas"][0].get("title", "") if got["metadatas"] else ""
         return {"issue_id": issue_id, "repo": issue_id.rsplit("#", 1)[0], "title": title}
 
-    def _attempt(self, stage: str, search_text: str, result: RetrievalResult, question: str) -> dict:
+    def _attempt(self, stage: str, search_text: str, result: RetrievalResult, question: str,
+                 config: RunnableConfig | None = None) -> dict:
+        report(config, "근거 정리 중")
         grade = grade_evidence(self.llm, question, result.evidence, result.assessment)
         return {
             "stage": stage,
@@ -65,11 +76,12 @@ class RAGPipeline:
             "_result": result,
         }
 
-    def retrieve(self, state: RAGState) -> dict:
+    def retrieve(self, state: RAGState, config: RunnableConfig = None) -> dict:
         started = time.perf_counter()
         question, repo, selected_id = state["question"], state.get("repo"), state.get("selected_issue_id")
         selected = self._selected_issue(selected_id)
 
+        report(config, "검색 조건 분석 중")
         plan = extract_queries(self.llm, question, self.repositories, selected)
         timings = {"query_plan": time.perf_counter() - started}
         english = " ".join([*plan.search_queries, *plan.exact_tokens])
@@ -86,6 +98,7 @@ class RAGPipeline:
             elif self.collector is not None:
                 # 앞 시도의 라우팅 결과를 수집 대상 저장소로 쓴다
                 repos = ([repo] if repo else plan.candidate_repos or attempts[-1]["route"]["repos"])[:2]
+                report(config, "캐시 확인 및 외부 이슈 수집 중")
                 queries = collection_queries(plan.search_queries, plan.exact_tokens, self.settings.collection_queries)
                 collection_result = self.collector.collect(question, queries, repos, self.llm)
                 collection = collection_result.as_dict()
@@ -95,8 +108,9 @@ class RAGPipeline:
                 stage, text, stage_repo, extra = "collected", english, plan_repo, collection_result.available
             else:
                 break
+            report(config, f"관련 문서 검색 중 ({len(attempts) + 1}차 시도)")
             result = self.retriever.retrieve(text, repo=stage_repo, selected_issue_id=selected_id, extra_issue_ids=extra)
-            attempts.append(self._attempt(stage, text, result, question))
+            attempts.append(self._attempt(stage, text, result, question, config))
             timings[f"attempt_{stage}"] = time.perf_counter() - stage_started
             if attempts[-1]["grade"]["sufficient"]:
                 break
@@ -139,7 +153,7 @@ class RAGPipeline:
             warnings.append(f"존재하지 않는 근거 번호 {check.invalid}를 답변에서 지웠습니다.")
         return answer, {"cited": check.cited, "invalid": check.invalid}, warnings
 
-    def generate(self, state: RAGState) -> dict:
+    def generate(self, state: RAGState, config: RunnableConfig = None) -> dict:
         started = time.perf_counter()
         question = state["question"]
         evidence = state.get("evidence", [])
@@ -148,6 +162,7 @@ class RAGPipeline:
 
         try:
             if state.get("sufficient") and evidence and self.llm is not None:
+                report(config, "답변 생성 중")
                 answer, check, answer_warnings = self._grounded_answer(question, evidence)
                 warnings.extend(answer_warnings)
                 from_evidence = answer.strip() != NO_EVIDENCE_MESSAGE

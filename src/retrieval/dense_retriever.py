@@ -29,7 +29,10 @@ class DenseRetriever:
         """(id, 유사도, 메타데이터) 목록. 코사인 거리를 1 - 거리로 바꿔 유사도로 쓴다."""
         if top_k <= 0 or self.collection.count() == 0:
             return []
-        embedding = self.embed_query(query)
+        try:
+            embedding = self.embed_query(query)
+        except Exception as exc:  # 키 없음·네트워크 오류. 메시지에 주소나 키가 섞일 수 있어 예외 이름만 남긴다
+            raise DenseSearchUnavailable(f"질문 임베딩 실패: {type(exc).__name__}") from exc
         for attempt in range(len(RETRY_DELAYS) + 1):
             try:
                 result = self.collection.query(
