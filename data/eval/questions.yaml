@@ -35,10 +35,12 @@ questions:
     type: grounded
     question: DataHub 인덱스 복원 중 NullPointerException이 발생해
     expect: {answer: true, cited_repos: [datahub-project/datahub], cite_any: [datahub-project/datahub#13067, datahub-project/datahub#10354]}
+  # 색인의 Conductor 이슈에는 NotFoundException을 던지는 테스트·코드만 있고 원인·해결을 다룬 이슈가 없다
+  # (2026-10-22 실행에서 세 시도 모두 판정 부족). 근거가 없으면 거부, 답한다면 Conductor 근거만 쓰는지 본다
   - id: q05
     type: grounded
     question: Conductor에서 태스크 정의를 찾을 수 없다는 NotFoundException이 나요
-    expect: {answer: true, cited_repos: [conductor-oss/conductor]}
+    expect: {answer: any, cited_repos: [conductor-oss/conductor]}
 
   # ------------------------------------------------------------ 오류 로그 (평가용 이슈의 실제 로그)
   - id: q06
