@@ -27,8 +27,8 @@ def issue(number, labels=("bug",), state_reason="completed", comments=2, body=LO
             "html_url": f"https://github.com/{REPO}/issues/{number}", "user": {"login": "reporter"}}
 
 
-def detail_routes(number, comments, timeline=(), prs=()):
-    routes = {f"{BASE}/issues/{number}": [FakeResponse(json_data=issue(number))],
+def detail_routes(number, comments, timeline=(), prs=(), data=None):
+    routes = {f"{BASE}/issues/{number}": [FakeResponse(json_data=data or issue(number))],
               f"{BASE}/issues/{number}/comments": [FakeResponse(json_data=comments)],
               f"{BASE}/issues/{number}/timeline": [FakeResponse(json_data=list(timeline))]}
     for pr in prs:
@@ -50,7 +50,8 @@ def routes():
                                                                    "repository": {"full_name": REPO}}}}]
     return {"/search/issues": [FakeResponse(json_data={"total_count": len(search), "items": search})],
             **detail_routes(1, [maintainer("Fixed in #50")], merged, prs=[50]),
-            **detail_routes(2, [maintainer("Pass `timeout=httpx.Timeout(60.0)`; this is expected on 1.40.0.")]),
+            **detail_routes(2, [maintainer("Pass `timeout=httpx.Timeout(60.0)`; this is expected on 1.40.0.")],
+                            data=search[1]),
             **detail_routes(5, [{"id": 2, "body": "same here", "author_association": "NONE", "user": {"login": "x"}}])}
 
 
@@ -100,7 +101,8 @@ def test_build_indexes_fix_usage_and_discussion(make_client, tmp_path):
     report = corpus_builder.build(Library(REPO, "llm_sdk", ["openai"]), deep_target=10, state=state)
 
     assert report.searched == 6 and report.prefiltered == 3
-    assert report.rejected == {"type:feature": 1, "no_comments": 1, "body_too_short": 1, "no_resolution": 1}
+    assert report.rejected == {"type:feature": 1, "no_comments": 1, "body_too_short": 1,
+                               "no_resolution:completed/none": 1}
     assert report.kinds == {"fix": 1, "usage": 1, "discussion": 1}
     assert report.indexed_issues == 2 and report.discussions == 1 and report.chunks > 0
     assert f"{BASE}/issues/3" not in session.paths()  # 사전 필터에서 빠진 이슈는 상세 수집하지 않는다
@@ -176,16 +178,21 @@ def test_fetch_discussions_pages_and_drops_unanswered():
         return next(pages)
     assert [n["number"] for n in fetch_discussions(post, REPO, 5)] == [900, 902]
     assert calls[1]["after"] == "c1" and calls[0]["owner"] == "openai"
-    assert fetch_discussions(lambda url, body: None, REPO, 5) == []  # 꺼져 있거나 권한이 없으면 건너뜀
+    errors = []
+    assert fetch_discussions(lambda url, body: {"errors": [{"message": "HTTP 502"}]}, REPO, 5, errors) == []
+    assert errors == ["Discussions 조회 실패: HTTP 502"]  # 실패해도 구축은 계속하고 사유만 남긴다
 
 
 def test_needs_build_and_ensure_libraries(make_client, tmp_path):
     now = datetime(2026, 10, 22, tzinfo=timezone.utc)
-    fresh = {"built_at": (now - timedelta(days=1)).isoformat()}
-    old = {"built_at": (now - timedelta(days=8)).isoformat().replace("+00:00", "Z")}
+    fresh = {"built_at": (now - timedelta(days=1)).isoformat(), "embedded": True}
+    old = {"built_at": (now - timedelta(days=8)).isoformat().replace("+00:00", "Z"), "embedded": True}
     assert needs_build({}, REPO, 7, now) == "full"
     assert needs_build({REPO: fresh}, REPO, 7, now) is None
     assert needs_build({REPO: old}, REPO, 7, now) == "incremental"
+    bm25_only = {"built_at": fresh["built_at"]}  # 임베딩 없이 만든 구축 (기록이 없는 예전 상태 포함)
+    assert needs_build({REPO: bm25_only}, REPO, 7, now) == "full"
+    assert needs_build({REPO: bm25_only}, REPO, 7, now, embedded=False) is None
 
     corpus = Corpus([Library(REPO, "llm_sdk", ["openai"], discussions=False),
                      Library("pydantic/pydantic", "core", ["pydantic"], discussions=False),
@@ -231,3 +238,15 @@ def test_build_embeds_into_chroma_with_corpus_metadata(make_client, tmp_path):
     kinds = {m["issue_id"]: (m["corpus"], m["resolution_kind"]) for m in stored["metadatas"]}
     assert kinds == {f"{REPO}#1": ("library", "fix"), f"{REPO}#2": ("library", "usage"),
                      f"{REPO}#900": ("library", "discussion")}
+
+
+def test_diagnose_script_rejudges_from_raw_without_network(make_client, tmp_path, capsys):
+    from scripts.diagnose_agent_corpus import main
+
+    corpus_builder, _ = builder(make_client, tmp_path)
+    corpus_builder.build(Library(REPO, "llm_sdk", ["openai"], discussions=False), 10, {})
+    assert main(["--repo", REPO, "--index", str(tmp_path / "agent_index")]) == 0
+    out = capsys.readouterr().out
+    assert "kind: fix 1, usage 1, None 1" in out and "level: " in out
+    assert LONG.split()[0] not in out  # 원문은 출력하지 않는다
+    assert main(["--repo", "nobody/nothing", "--index", str(tmp_path / "agent_index")]) == 1

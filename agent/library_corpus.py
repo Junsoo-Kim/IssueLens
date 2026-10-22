@@ -124,20 +124,25 @@ def default_post(token: str | None) -> Post:
         if token:
             headers["Authorization"] = f"Bearer {token}"
         try:
-            response = requests.post(url, json=body, headers=headers, timeout=20)
-        except requests.RequestException:
-            return None
-        return response.json() if response.status_code == 200 else None
+            response = requests.post(url, json=body, headers=headers, timeout=30)
+        except requests.RequestException as exc:
+            return {"errors": [{"message": type(exc).__name__}]}
+        if response.status_code != 200:
+            return {"errors": [{"message": f"HTTP {response.status_code}"}]}
+        return response.json()
     return post
 
 
-def fetch_discussions(post: Post, repo: str, limit: int) -> list[dict]:
-    """채택 답변이 있는 Q&A Discussions (최근 갱신 순)."""
+def fetch_discussions(post: Post, repo: str, limit: int, errors: list[str] | None = None) -> list[dict]:
+    """채택 답변이 있는 Q&A Discussions (최근 갱신 순). 실패 사유는 errors에 더한다."""
     owner, name = repo.split("/", 1)
     found, after = [], None
     while len(found) < limit:
         data = post(GRAPHQL_URL, {"query": DISCUSSION_QUERY,
                                   "variables": {"owner": owner, "name": name, "first": min(50, limit), "after": after}})
+        if errors is not None and (data is None or data.get("errors")):
+            messages = [e.get("message", "") for e in (data or {}).get("errors") or [{"message": "응답 없음"}]]
+            errors.append(f"Discussions 조회 실패: {'; '.join(messages)[:200]}")
         page = ((((data or {}).get("data") or {}).get("repository") or {}).get("discussions")) or {}
         for node in page.get("nodes") or []:
             if node.get("answer") and (node.get("category") or {}).get("isAnswerable", True):
@@ -232,7 +237,7 @@ def needs_build(state: dict, repo: str, refresh_days: int, now: datetime | None 
 
     embedded: 이번 구축에서 임베딩하는지. 임베딩 없이(--skip-embed) 만든 구축은 Chroma가 비어 있어 처음부터 다시 한다."""
     entry = state.get(repo)
-    if not entry or (embedded and not entry.get("embedded", True)):
+    if not entry or (embedded and not entry.get("embedded")):
         return "full"
     built = datetime.fromisoformat(entry["built_at"].replace("Z", "+00:00"))
     return "incremental" if (now or datetime.now(timezone.utc)) - built > timedelta(days=refresh_days) else None
@@ -317,7 +322,9 @@ class LibraryCorpusBuilder:
             evidence = judge_evidence(summary, comments, (issue.get("user") or {}).get("login"), maintainers)
             kind = resolution_kind(record, tag, evidence)
             if not kind:
-                report.rejected["no_resolution"] = report.rejected.get("no_resolution", 0) + 1
+                # 어디서 빠지는지 보이게 종료 사유와 근거 수준을 붙인다 (예: no_resolution:not_planned/weak)
+                reason = f"no_resolution:{record.get('state_reason')}/{evidence['evidence_level']}"
+                report.rejected[reason] = report.rejected.get(reason, 0) + 1
                 continue
             accepted += 1
             if self.holdout_every and accepted % self.holdout_every == 0:
@@ -334,7 +341,7 @@ class LibraryCorpusBuilder:
             report.kinds[kind] = report.kinds.get(kind, 0) + 1
 
         if library.discussions and self.post and not report.stopped:
-            for node in fetch_discussions(self.post, repo, max(1, deep_target // 3)):
+            for node in fetch_discussions(self.post, repo, max(1, deep_target // 3), report.errors):
                 if f"{repo}#{node['number']}" in known:
                     continue
                 item, docs = discussion_item_and_documents(repo, node)
@@ -365,7 +372,7 @@ def ensure_libraries(builder: LibraryCorpusBuilder, corpus: Corpus, resolutions:
     results, built = [], 0
     for repo in repos:
         library = by_repo[repo.lower()]
-        mode = needs_build(state, library.repo, refresh_days)
+        mode = needs_build(state, library.repo, refresh_days, embedded=builder.index.embedder is not None)
         if mode is None:
             results.append({"repo": library.repo, "status": "ready"})
             continue
