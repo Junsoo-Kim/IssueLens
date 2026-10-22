@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Callable
 
@@ -146,6 +147,34 @@ def _strings(values, limit: int, max_chars: int = 120) -> list[str]:
     return list(dict.fromkeys(cleaned))[:limit]
 
 
+# 거의 모든 이슈에 나와 근거 판정의 정확 토큰으로 쓰면 아무 이슈나 통과시키는 이름 (실제 검증: model, messages)
+GENERIC_TOKENS = {"model", "models", "messages", "message", "client", "response", "data", "text", "prompt", "content",
+                  "role", "user", "timeout", "stream", "input", "output", "result", "config", "settings", "kwargs",
+                  "args", "self", "none", "true", "false", "error", "exception", "api_key", "temperature"}
+REQUIREMENT = re.compile(r"^[A-Za-z0-9_.\[\]-]+\s*(?:===?|>=|<=|~=|!=|>|<)\s*([\w.*+-]+)$")
+
+
+def clean_tokens(tokens: list[str], limit: int = MAX_TOKENS) -> list[str]:
+    """프롬프트 4의 정확 토큰을 근거에 실제로 나올 형태로 바꾼다.
+
+    - 의존성 표기는 버전만 (openai==1.51.0 -> 1.51.0)
+    - 인자·설정 대입은 이름만 (request_timeout=5 -> request_timeout). 값까지 같은 이슈는 거의 없다
+    - 따옴표·괄호를 떼고, 흔한 이름(model, messages)과 숫자 없는 3자 이하 토큰은 버린다
+    """
+    cleaned = []
+    for token in tokens:
+        token = token.strip().strip("`'\"").rstrip("(),:;")
+        if match := REQUIREMENT.match(token):
+            token = match.group(1)
+        elif "=" in token:
+            token = token.split("=", 1)[0].strip()
+        token = token.strip("`'\" ").rstrip("(")
+        if not token or token.lower() in GENERIC_TOKENS or (len(token) <= 3 and not any(c.isdigit() for c in token)):
+            continue
+        cleaned.append(token)
+    return list(dict.fromkeys(cleaned))[:limit]
+
+
 def _resolve(finding: Finding, resolve: Resolve) -> Finding:
     if finding.library:
         finding.repo = resolve(finding.library).repo
@@ -176,7 +205,7 @@ def parse_findings(data: dict, bundle: DiffBundle, resolve: Resolve) -> list[Fin
             id="", file=raw["file"], line=_snap_line(changes[raw["file"]], raw.get("line")), kind=kind,
             summary=" ".join(str(raw["summary"]).split())[:300], concern=" ".join(str(raw.get("concern") or "").split())[:300],
             library=library, search_queries=_strings(raw.get("search_queries"), MAX_QUERIES),
-            exact_tokens=_strings(raw.get("exact_tokens"), MAX_TOKENS, 80),
+            exact_tokens=clean_tokens(_strings(raw.get("exact_tokens"), MAX_TOKENS * 2, 80)),
             severity=raw.get("severity") if raw.get("severity") in SEVERITIES else "low"), resolve))
     return findings
 

@@ -209,3 +209,11 @@ def test_research_collects_into_agent_index_within_search_budget(make_client, tm
     searched = len([p for p in session.paths() if p == "/search/issues"])
     second = researcher.research(finding(id="f2", search_queries=["another query"]))
     assert second.collection_skipped and len([p for p in session.paths() if p == "/search/issues"]) == searched
+
+
+def test_clean_tokens_keeps_searchable_names_only():
+    from agent.reviewer import clean_tokens
+    raw = ["openai==1.51.0", "request_timeout=5", 'model="gpt-4o-mini"', "messages", "`ChatCompletion.create(`",
+           "APITimeoutError", "id", "v2", "gpt-4o-mini"]
+    assert clean_tokens(raw, 10) == ["1.51.0", "request_timeout", "ChatCompletion.create", "APITimeoutError", "v2",
+                                     "gpt-4o-mini"]
