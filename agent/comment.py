@@ -23,12 +23,18 @@ MARKER = "<!-- issuelens-review -->"
 DISCLAIMER = "> 공개 이슈와 문서를 검색해 제공하는 기술 조사 보조 결과입니다. 적용 전 재현 테스트로 확인하세요."
 NO_FINDINGS = "현재 커밋 기준 지적 없음."
 CITATION = re.compile(r"\[근거 (\d+)\]")
+REPEATED_CITATION = re.compile(r"(\[근거 (\d+)\])(?:\s*\[근거 \2\])+")
 MENTION = re.compile(r"(?<![\w`])@(?=[A-Za-z0-9])")
 
 
 def safe(text: str) -> str:
     """한 줄로 줄이고 @멘션을 끊는다 (코멘트로 다른 사람에게 알림이 가지 않게)."""
     return MENTION.sub("@​", " ".join((text or "").split()))
+
+
+def sentence(text: str) -> str:
+    """끝 문장부호를 떼어 템플릿이 붙이는 마침표와 겹치지 않게 한다."""
+    return safe(text).rstrip(" .。")
 
 
 def location(finding: Finding, repo: str | None, head_sha: str | None) -> str:
@@ -44,17 +50,24 @@ class Citations:
 
     def __init__(self):
         self.entries: list[tuple[int, object]] = []
-        self._by_id: dict[str, int] = {}
+        self._by_key: dict[tuple, int] = {}
+
+    @staticmethod
+    def key(evidence) -> tuple:
+        """같은 문서의 다른 청크는 같은 근거로 본다 (같은 이슈 본문이 [근거 7][근거 8]로 나뉘지 않게)."""
+        return evidence.issue_id, evidence.document_type, evidence.source_url
 
     def renumber(self, research: Research) -> str:
         mapping = {}
         for evidence in research.cited_evidence:
-            if evidence.id not in self._by_id:
-                self._by_id[evidence.id] = len(self.entries) + 1
-                self.entries.append((self._by_id[evidence.id], evidence))
-            mapping[evidence.number] = self._by_id[evidence.id]
-        return CITATION.sub(lambda m: f"[근거 {mapping[int(m.group(1))]}]" if int(m.group(1)) in mapping else "",
+            key = self.key(evidence)
+            if key not in self._by_key:
+                self._by_key[key] = len(self.entries) + 1
+                self.entries.append((self._by_key[key], evidence))
+            mapping[evidence.number] = self._by_key[key]
+        text = CITATION.sub(lambda m: f"[근거 {mapping[int(m.group(1))]}]" if int(m.group(1)) in mapping else "",
                             research.draft)
+        return REPEATED_CITATION.sub(r"\1", text)
 
     def details(self) -> list[str]:
         if not self.entries:
@@ -90,15 +103,15 @@ def compose(bundle: DiffBundle, review: Review, researches: dict[str, Research],
     if grounded:
         lines += ["### 알려진 이슈 기반 (RAG)"]
         for finding, research in grounded:
-            lines.append(f"- {location(finding, repo, sha)} `{safe(finding.summary)}`")
+            lines.append(f"- {location(finding, repo, sha)} `{sentence(finding.summary)}`")
             lines += draft_lines(citations.renumber(research))
         lines.append("")
     if general:
         lines += ["### 일반 코드 리뷰 (RAG 미사용, 근거 없음)"]
         for finding in general:
             note = " (관련 라이브러리 이슈를 찾지 못함)" if finding.needs_research else ""
-            concern = f" {safe(finding.concern)}" if finding.concern else ""
-            lines.append(f"- {location(finding, repo, sha)} {safe(finding.summary)}.{concern}{note}")
+            concern = f" {sentence(finding.concern)}." if finding.concern else ""
+            lines.append(f"- {location(finding, repo, sha)} {sentence(finding.summary)}.{concern}{note}")
         lines.append("")
     lines += citations.details()
     extra = list(notes or [])

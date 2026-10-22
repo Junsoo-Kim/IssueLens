@@ -1,0 +1,56 @@
+# 에이전트 검증 PR 세트 (기획서 17.11절). scripts/run_agent_checks.py와 tests/test_agent_checks.py가 함께 쓴다.
+#
+# python_project: 대상 레포 루트에 requirements.txt를 둘지 (Python 프로젝트 판별)
+# expect:
+#   comment: true(코멘트 있음) / false(지적 없음, 코멘트 없음)
+#   rag: required(근거 기반 지적이 있어야 함) / expected(있으면 좋음, 없으면 경고) / none(없어야 함)
+#   general: required / none / any
+#   reviewed: false면 리뷰하지 않고 건너뜀
+# patch의 {FAKE_KEY}는 실행할 때 가짜 키로 바꾼다 (파일에 키 모양 문자열이 남지 않게)
+cases:
+  - id: dependency_upgrade
+    title: 의존성 업그레이드 (langchain-core 0.2 -> 0.3)
+    patch: dependency_upgrade.patch
+    python_project: true
+    expect: {comment: true, rag: expected, general: any}
+  - id: openai_legacy_call
+    title: openai 1.x로 올렸는데 openai.ChatCompletion 호출이 남음
+    patch: openai_legacy_call.patch
+    python_project: true
+    expect: {comment: true, rag: expected, general: any}
+  - id: pydantic_v1_methods
+    title: pydantic v2에서 .dict(), parse_obj 사용
+    patch: pydantic_v1_methods.patch
+    python_project: true
+    expect: {comment: true, rag: expected, general: any}
+  - id: langchain_old_import
+    title: LangChain의 옮겨진 import 경로 사용
+    patch: langchain_old_import.patch
+    python_project: true
+    expect: {comment: true, rag: expected, general: any}
+  - id: logic_only
+    title: 라이브러리와 무관한 로직 변경
+    patch: logic_only.patch
+    python_project: true
+    expect: {comment: true, rag: none, general: required}
+  - id: docs_only
+    title: 문제 없는 변경 (문서)
+    patch: docs_only.patch
+    python_project: true
+    expect: {comment: false, rag: none, general: none}
+  - id: secret_in_patch
+    title: patch에 가짜 API 키 포함
+    patch: secret_in_patch.patch
+    python_project: true
+    expect: {comment: any, rag: any, general: any, masked: true}
+  - id: non_python
+    title: Python 프로젝트가 아닌 레포
+    patch: non_python.patch
+    python_project: false
+    expect: {reviewed: false, comment: false, rag: none, general: none}
+  - id: unknown_library
+    title: 큐레이션 목록에 없는 라이브러리 사용
+    patch: unknown_library.patch
+    python_project: true
+    expect: {comment: any, rag: any, general: any}
+# "같은 PR에 커밋 추가 -> 기존 코멘트 갱신"은 게시 동작이라 단위 테스트(tests/test_comment.py)로 확인한다

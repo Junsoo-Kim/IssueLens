@@ -1,0 +1,10 @@
+diff --git a/requirements.txt b/requirements.txt
+index 1111111..2222222 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,4 +1,4 @@
+ fastapi==0.115.0
+-langchain-core==0.2.43
++langchain-core==0.3.15
+ langchain-openai==0.2.8
+ uvicorn==0.32.0
